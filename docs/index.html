@@ -157,14 +157,14 @@
     }
 
     /* Column widths */
-    th:first-child, td:first-child { text-align: left; width: 2.2rem; }   /* # */
-    th:nth-child(2), td:nth-child(2) { text-align: left; width: 8rem; }   /* Name */
-    th:nth-child(3), td:nth-child(3) { width: 4.5rem; }                   /* Symbol */
-    th:nth-child(4), td:nth-child(4) { width: 7rem; }                     /* Price */
-    th:nth-child(5), td:nth-child(5) { width: 9rem; }                     /* Market Cap */
-    th:nth-child(6), td:nth-child(6) { width: 9rem; }                     /* 24h Vol */
-    th:nth-child(7), td:nth-child(7) { width: 7.5rem; }                   /* Value ratio */
-    th:nth-child(8), td:nth-child(8) { width: 4.5rem; }                   /* 24h % */
+    th:first-child, td:first-child { text-align: left; width: 2.2rem; }
+    th:nth-child(2), td:nth-child(2) { text-align: left; width: 8rem; }
+    th:nth-child(3), td:nth-child(3) { width: 4.5rem; }
+    th:nth-child(4), td:nth-child(4) { width: 7rem; }
+    th:nth-child(5), td:nth-child(5) { width: 9rem; }
+    th:nth-child(6), td:nth-child(6) { width: 9rem; }
+    th:nth-child(7), td:nth-child(7) { width: 7.5rem; }
+    th:nth-child(8), td:nth-child(8) { width: 4.5rem; }
 
     th {
       position: sticky;
@@ -250,30 +250,6 @@
 </main>
 
 <script>
-async function loadData() {
-  const status = document.getElementById("status");
-  try {
-    status.textContent = "Loading data…";
-    console.log("Fetching data.json...");
-    const res = await fetch("data.json?cb=" + Date.now());
-    console.log("Response status:", res.status);
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const json = await res.json();
-    console.log("Data.json payload:", json);
-
-    // json.updated already contains "UTC" in your Python code
-    const updated = json.updated || "";
-    const currency = json.currency || "USD";
-
-    status.textContent = "Last updated: " + updated + " — Currency: " + currency;
-
-    renderTables(json.top_undervalued || [], json.top_overvalued || []);
-  } catch (e) {
-    console.error("Error loading data.json:", e);
-    status.textContent = "Error loading data: " + e.message;
-  }
-}
-
 function formatNum(n) {
   const v = Number(n);
   if (!isFinite(v)) return "-";
@@ -310,12 +286,49 @@ function renderTable(rows) {
 }
 
 function renderTables(under, over) {
-  // under = undervalued list, over = overvalued list
   document.getElementById("under-table").innerHTML = renderTable(under);
   document.getElementById("over-table").innerHTML = renderTable(over);
 }
 
-loadData();
+async function loadData() {
+  const status = document.getElementById("status");
+  try {
+    if (!status) {
+      console.error("Status element not found");
+      return;
+    }
+    status.textContent = "Initializing…";
+    console.log("JS running, starting fetch");
+
+    const url = "data.json?cb=" + Date.now();
+    status.textContent = "Fetching " + url + " …";
+
+    const res = await fetch(url);
+    console.log("Response status:", res.status);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const json = await res.json();
+    console.log("Parsed JSON:", json);
+
+    const updated = json.updated || "";
+    const currency = json.currency || "USD";
+
+    status.textContent = "Last updated: " + updated + " — Currency: " + currency;
+
+    const under = json.top_undervalued || [];
+    const over = json.top_overvalued || [];
+
+    renderTables(under, over);
+  } catch (e) {
+    console.error("Error loading data.json:", e);
+    if (status) status.textContent = "Error loading data: " + e.message;
+  }
+}
+
+// run after DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  loadData();
+});
 </script>
 </body>
 </html>
