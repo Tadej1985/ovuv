@@ -5,10 +5,10 @@
   <title>OVUV — Crypto Undervalued &amp; Overvalued Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated every 30 minutes using live market data from CoinCap.">
+  <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated automatically using live market data from CoinCap.">
 
   <meta property="og:title" content="OVUV — Crypto Undervaluation Tracker">
-  <meta property="og:description" content="Top 25 undervalued &amp; overvalued cryptos, updated every 30 minutes.">
+  <meta property="og:description" content="Top 25 undervalued &amp; overvalued cryptos, updated automatically.">
   <meta property="og:type" content="website">
 
   <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -20,40 +20,37 @@
   <style>
     :root {
       --bg: #020617;
-      --bg-alt: #0b1120;
-      --card: #020617;
       --border: #1f2937;
       --text: #e5e7eb;
       --muted: #9ca3af;
       --accent-green: #22c55e;
       --accent-red: #ef4444;
+      --shadow: 0 18px 35px rgba(15,23,42,0.8);
     }
     * { box-sizing: border-box; }
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: radial-gradient(circle at top, #111827 0, var(--bg) 40%, #000 100%);
+      background: radial-gradient(circle at top, #111827 0, var(--bg) 45%, #000 100%);
       color: var(--text);
     }
-    a { color: var(--muted); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
     header {
-      padding: 1rem 1.5rem;
-      background: rgba(2,6,23,0.85);
+      padding: 1rem 1.5rem 0.8rem;
+      background: rgba(2,6,23,0.88);
       border-bottom: 1px solid var(--border);
       backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
-      z-index: 10;
+      z-index: 20;
     }
     h1 {
       margin: 0;
       font-size: 1.8rem;
       letter-spacing: -0.04em;
       display: flex;
-      align-items: center;
-      gap: 0.4rem;
+      align-items: baseline;
+      gap: 0.45rem;
     }
     .brand {
       font-weight: 800;
@@ -61,159 +58,157 @@
       align-items: center;
       gap: 0.1rem;
     }
-    .brand span {
-      display: inline-block;
-    }
     .brand .o { color: var(--accent-red); }
     .brand .u { color: var(--accent-green); }
-    .sub {
-      margin-top: 0.3rem;
-      font-size: 0.85rem;
+    .tagline {
+      font-size: 0.9rem;
       color: var(--muted);
+      margin-top: 0.35rem;
+      line-height: 1.4;
     }
-
     main {
-      max-width: 1100px;
+      max-width: 1180px;
       margin: 0 auto;
-      padding: 1rem 1.5rem 3rem;
+      padding: 1.25rem 1.5rem 2.75rem;
     }
     #status {
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       color: var(--muted);
       margin-bottom: 0.75rem;
+      text-align: center;
     }
-
     .banner {
-      margin: 1rem 0 1.5rem;
-      padding: 0.75rem;
-      border-radius: 12px;
+      margin: 0.5rem auto 1.6rem;
+      padding: 0.65rem;
+      border-radius: 14px;
       background: rgba(17,24,39,0.9);
       border: 1px dashed #facc15;
       text-align: center;
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       color: #facc15;
+      max-width: 760px;
     }
-
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1rem;
+      gap: 1.25rem;
     }
-
     .card {
-      background: rgba(2,6,23,0.9);
-      border-radius: 16px;
-      padding: 0.85rem 0.85rem 0.6rem;
+      background: rgba(2,6,23,0.96);
+      border-radius: 18px;
+      padding: 0.9rem 0.95rem 0.75rem;
       border: 1px solid var(--border);
-      box-shadow: 0 20px 45px rgba(15,23,42,0.7);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
-
     h2 {
-      margin: 0 0 0.5rem;
-      font-size: 1.1rem;
+      margin: 0 0 0.6rem;
+      font-size: 1.05rem;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      justify-content: space-between;
+      gap: 0.5rem;
     }
-
     .badge {
       display: inline-flex;
       align-items: center;
-      padding: 0.12rem 0.5rem;
+      padding: 0.16rem 0.6rem;
       border-radius: 999px;
       font-size: 0.7rem;
       border: 1px solid var(--accent-green);
       color: #bbf7d0;
-      background: rgba(34,197,94,0.12);
+      background: rgba(34,197,94,0.11);
+      white-space: nowrap;
     }
     .badge.red {
       border-color: var(--accent-red);
       color: #fecaca;
-      background: rgba(239,68,68,0.12);
+      background: rgba(239,68,68,0.11);
     }
-
+    .table-wrapper {
+      flex: 1;
+      min-height: 0;
+      max-height: 520px;
+      overflow: auto;
+      border-radius: 10px;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.8rem;
     }
     th, td {
-      padding: 0.35rem 0.45rem;
-      border-bottom: 1px solid #111827;
+      padding: 0.32rem 0.45rem;
+      border-bottom: 1px solid #0b1120;
       text-align: right;
       white-space: nowrap;
-    }
-    th {
-      position: sticky;
-      top: 0;
-      background: rgba(2,6,23,0.95);
-      font-weight: 600;
-      z-index: 1;
-      text-align: right;
     }
     th:first-child, td:first-child {
       text-align: left;
     }
-    tr:nth-child(odd) {
-      background: rgba(15,23,42,0.7);
+    th {
+      position: sticky;
+      top: 0;
+      background: #020617;
+      font-weight: 600;
+      z-index: 1;
     }
-    tr:nth-child(even) {
-      background: rgba(15,23,42,0.5);
-    }
-    tr:hover {
-      background: #111827;
-    }
-
+    tr:nth-child(odd) { background: rgba(15,23,42,0.8); }
+    tr:nth-child(even) { background: rgba(15,23,42,0.6); }
+    tr:hover { background: #111827; }
     footer {
-      margin-top: 1.5rem;
+      margin-top: 1.6rem;
       font-size: 0.78rem;
       color: var(--muted);
       text-align: center;
-      padding-top: 0.75rem;
+      padding-top: 0.9rem;
       border-top: 1px solid var(--border);
     }
-
-    @media (max-width: 768px) {
-      header { padding: 0.75rem 1rem; }
-      main { padding: 0.75rem 1rem 2.5rem; }
+    @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
-      h1 { font-size: 1.5rem; }
-      table { font-size: 0.75rem; }
     }
   </style>
 </head>
 <body>
 <header>
   <h1>
-    <span class="brand">
-      <span class="o">O</span>V<span class="u">U</span>V
-    </span>
-    <span style="font-size:0.8rem;font-weight:500;color:#9ca3af;">crypto undervaluation tracker</span>
+    <span class="brand"><span class="o">O</span>V<span class="u">U</span>V</span>
+    <span style="font-size:0.9rem;font-weight:500;color:#9ca3af;">crypto undervaluation tracker</span>
   </h1>
-  <div class="sub">
+  <div class="tagline">
     Top 25 most undervalued &amp; top 25 most overvalued cryptocurrencies by a simple volume vs market cap model.<br>
-    Updated automatically every ~30 minutes. Data from <a href="https://coincap.io" target="_blank" rel="noopener">CoinCap API</a>. Not financial advice.
+    Updated automatically every ~30 minutes. Data from CoinCap API. Not financial advice.
   </div>
 </header>
 
 <main>
   <div id="status">Loading data…</div>
 
-  <!-- Single banner ad slot -->
   <div class="banner">
-    <!-- Replace this with your real banner ad code (e.g. Google AdSense) when ready -->
     Banner ad spot (e.g. 728×90 / responsive)
   </div>
 
   <div class="grid">
     <div class="card">
-      <h2>🏆 Top 25 Undervalued <span class="badge">Higher score = more undervalued</span></h2>
-      <div id="under-table">Loading…</div>
+      <h2>
+        <span>🏆 Top 25 Undervalued</span>
+        <span class="badge">Higher volume vs market cap</span>
+      </h2>
+      <div class="table-wrapper">
+        <div id="under-table">Loading…</div>
+      </div>
     </div>
 
     <div class="card">
-      <h2>⚠️ Top 25 Overvalued <span class="badge red">Lower score = more overvalued</span></h2>
-      <div id="over-table">Loading…</div>
+      <h2>
+        <span>⚠️ Top 25 Overvalued</span>
+        <span class="badge red">Lower volume vs market cap</span>
+      </h2>
+      <div class="table-wrapper">
+        <div id="over-table">Loading…</div>
+      </div>
     </div>
   </div>
 
@@ -250,13 +245,11 @@ function formatNum(n) {
 
 function renderTable(rows) {
   if (!rows || !rows.length) return "<p>No data.</p>";
-
-  let html = "<div style='max-height:480px;overflow:auto;'><table><thead><tr>" +
+  let html = "<table><thead><tr>" +
     "<th>#</th><th>Name</th><th>Symbol</th>" +
     "<th>Price (USD)</th><th>Market Cap</th>" +
-    "<th>24h Volume</th><th>Value ratio</th><th>24h %</th><th>Score</th>" +
+    "<th>24h Volume</th><th>Value ratio</th><th>24h %</th>" +
     "</tr></thead><tbody>";
-
   for (const r of rows) {
     html += "<tr>" +
       `<td>${r.rank}</td>` +
@@ -267,11 +260,9 @@ function renderTable(rows) {
       `<td>${formatNum(r.volume_24h)}</td>` +
       `<td>${Number(r.value_ratio).toFixed(6)}</td>` +
       `<td>${Number(r.momentum_24h).toFixed(2)}</td>` +
-      `<td>${Number(r.undervalue_score).toFixed(3)}</td>` +
       "</tr>";
   }
-
-  html += "</tbody></table></div>";
+  html += "</tbody></table>";
   return html;
 }
 
