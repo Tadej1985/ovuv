@@ -1,6 +1,5 @@
-# .github/update_data.py
+import os
 import json
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -9,18 +8,20 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# ✅ v3 base URL
 COINCAP_URL = "https://rest.coincap.io/v3/assets"
+API_KEY = os.getenv("COINCAP_API_KEY", "")
 
 
 def make_session() -> requests.Session:
     """
-    Requests session with robust retries/backoff for transient DNS/HTTP issues.
+    Requests session with retries/backoff for transient network issues.
     """
     retry = Retry(
-        total=5,                # total attempts
-        connect=5,              # retry on connection errors (DNS, etc.)
+        total=5,
+        connect=5,
         read=5,
-        backoff_factor=1.5,     # 0s, 1.5s, 3s, 4.5s, 6s ...
+        backoff_factor=1.5,
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods={"GET"},
         raise_on_status=False,
@@ -36,14 +37,23 @@ def make_session() -> requests.Session:
 
 def fetch_coins(limit: int = 200, session: requests.Session | None = None) -> pd.DataFrame:
     """
-    Fetch top N assets from .
+    Fetch top N assets from CoinCap v3.
+    Expects COINCAP_API_KEY to be set.
     """
+    if not API_KEY:
+        raise RuntimeError("COINCAP_API_KEY is not set")
+
     s = session or make_session()
-    resp = s.get(COINCAP_URL, params={"limit": limit}, timeout=30)
+    params = {
+        "limit": limit,
+        "apiKey": API_KEY,  # v3 expects an apiKey param
+    }
+    resp = s.get(COINCAP_URL, params=params, timeout=30)
     resp.raise_for_status()
-    data = resp.json().get("data", [])
+    body = resp.json()
+    data = body.get("data", [])
     if not data:
-        raise RuntimeError("CoinCap returned no 'data'")
+        raise RuntimeError(f"CoinCap returned no data: {body!r}")
     return pd.DataFrame(data)
 
 
@@ -56,43 +66,37 @@ def zscore(series: pd.Series) -> pd.Series:
 
 def compute_scores(limit: int = 200) -> dict:
     """
-    Returns a dict with:
+    Returns:
       - updated: timestamp (UTC)
       - currency: "USD"
-      - top_undervalued: list of 25 rows (most undervalued)
-      - top_overvalued: list of 25 rows (most overvalued)
+      - top_undervalued: 25 rows
+      - top_overvalued: 25 rows
     """
     session = make_session()
     df = fetch_coins(limit=limit, session=session)
 
-    # Convert numeric columns
+    # v3 should still provide these fields (as strings)
     for col in ["rank", "priceUsd", "marketCapUsd", "volumeUsd24Hr", "changePercent24Hr"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df = df.dropna(subset=["rank", "priceUsd", "marketCapUsd", "volumeUsd24Hr", "changePercent24Hr"])
-    df = df[df["marketCapUsd"].astype(float) > 0]  # avoid division by zero
+    df = df[df["marketCapUsd"] > 0]
 
-    # Core metrics
-    df["current_price"] = df["priceUsd"].astype(float)
-    df["market_cap"] = df["marketCapUsd"].astype(float)
-    df["volume_24h"] = df["volumeUsd24Hr"].astype(float)
-    df["momentum_24h"] = df["changePercent24Hr"].astype(float)
+    df["current_price"] = df["priceUsd"]
+    df["market_cap"] = df["marketCapUsd"]
+    df["volume_24h"] = df["volumeUsd24Hr"]
+    df["momentum_24h"] = df["changePercent24Hr"]
 
-    # Value ratio: volume relative to market cap
     df["value_ratio"] = df["volume_24h"] / df["market_cap"]
 
-    # Z-score components
     df["value_component"] = zscore(df["value_ratio"])
-    df["momentum_component"] = zscore(-df["momentum_24h"])  # lower momentum => more undervalued
+    df["momentum_component"] = zscore(-df["momentum_24h"])
 
-    # Composite score (tweak weights if you want)
     df["undervalue_score"] = 0.6 * df["value_component"] + 0.4 * df["momentum_component"]
 
-    # Most undervalued: highest score
     df_under = df.sort_values("undervalue_score", ascending=False).reset_index(drop=True)
     df_under["rank"] = df_under.index + 1
 
-    # Most overvalued: lowest score
     df_over = df.sort_values("undervalue_score", ascending=True).reset_index(drop=True)
     df_over["rank"] = df_over.index + 1
 
@@ -142,14 +146,11 @@ def main():
             f"and {len(data['top_overvalued'])} overvalued coins at {data['updated']}"
         )
     except Exception as e:
-        # Graceful fallback: keep previous data if fetch fails (e.g., DNS hiccup)
-        print(f"WARNING: fetch failed: {e!r}")
+        print(f"ERROR while updating data: {e!r}")
+        # Keep existing data.json if present, to avoid breaking the site
         if out_path.exists():
             print("Keeping existing docs/data.json (no update).")
-            # Exit 0 so the workflow doesn't go red just because of a temporary network issue.
-            return
         else:
-            # First run and no data available: write a minimal placeholder so the site loads.
             placeholder = {
                 "updated": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                 "currency": "USD",
