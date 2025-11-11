@@ -93,23 +93,29 @@
     }
 
     .grid {
-      display: flex;
-      gap: 1.5rem;
-      justify-content: center;
-      align-items: start;
-      flex-wrap: wrap;
-    }
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.6rem;
+  justify-content: center;
+  align-items: start;
+}
 
-    .card {
-      background: rgba(2,6,23,0.96);
-      border-radius: 16px;
-      padding: 1rem;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      width: 100%;
-      max-width: 620px;
-      flex: 1 1 580px;
-    }
+.card {
+  background: rgba(2,6,23,0.96);
+  border-radius: 16px;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  width: 100%;
+  min-width: 480px;
+}
+
+@media (max-width: 1000px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 
     h2 {
       margin: 0 0 0.8rem;
