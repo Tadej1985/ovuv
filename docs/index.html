@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated automatically using live market data from CoinCap.">
-
   <meta property="og:title" content="OVUV — Crypto Undervaluation Tracker">
   <meta property="og:description" content="Top 25 undervalued &amp; overvalued cryptos, updated automatically.">
   <meta property="og:type" content="website">
@@ -93,29 +92,24 @@
     }
 
     .grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.6rem;
-  justify-content: center;
-  align-items: start;
-}
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      justify-content: center;
+      align-items: start;
+      max-width: 1350px;
+      margin: 0 auto;
+    }
 
-.card {
-  background: rgba(2,6,23,0.96);
-  border-radius: 16px;
-  padding: 1rem;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  width: 100%;
-  min-width: 480px;
-}
-
-@media (max-width: 1000px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
+    .card {
+      background: rgba(2,6,23,0.96);
+      border-radius: 16px;
+      padding: 1.1rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 660px;
+    }
 
     h2 {
       margin: 0 0 0.8rem;
@@ -154,7 +148,7 @@
     }
 
     th, td {
-      padding: 0.45rem 0.4rem;
+      padding: 0.5rem 0.45rem;
       border-bottom: 1px solid #0b1120;
       text-align: right;
       overflow: hidden;
@@ -162,14 +156,15 @@
       white-space: nowrap;
     }
 
-    th:first-child, td:first-child { text-align: left; width: 2.2rem; }
-    th:nth-child(2), td:nth-child(2) { text-align: left; width: 7.5rem; }
-    th:nth-child(3), td:nth-child(3) { width: 4.5rem; }
-    th:nth-child(4), td:nth-child(4) { width: 6.5rem; }
-    th:nth-child(5), td:nth-child(5) { width: 8rem; }
-    th:nth-child(6), td:nth-child(6) { width: 8rem; }
-    th:nth-child(7), td:nth-child(7) { width: 7rem; }
-    th:nth-child(8), td:nth-child(8) { width: 4rem; }
+    /* Column widths so big numbers fit */
+    th:first-child, td:first-child { text-align: left; width: 2.2rem; }   /* # */
+    th:nth-child(2), td:nth-child(2) { text-align: left; width: 8rem; }   /* Name */
+    th:nth-child(3), td:nth-child(3) { width: 4.5rem; }                   /* Symbol */
+    th:nth-child(4), td:nth-child(4) { width: 7rem; }                     /* Price */
+    th:nth-child(5), td:nth-child(5) { width: 9rem; }                     /* Market Cap */
+    th:nth-child(6), td:nth-child(6) { width: 9rem; }                     /* 24h Vol */
+    th:nth-child(7), td:nth-child(7) { width: 7.5rem; }                   /* Value ratio */
+    th:nth-child(8), td:nth-child(8) { width: 4.5rem; }                   /* 24h % */
 
     th {
       position: sticky;
@@ -192,9 +187,16 @@
       border-top: 1px solid var(--border);
     }
 
-    @media (max-width: 900px) {
-      .card { max-width: 100%; }
-      table { font-size: 0.75rem; }
+    @media (max-width: 1000px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .card {
+        max-width: 100%;
+      }
+      table {
+        font-size: 0.75rem;
+      }
     }
   </style>
 </head>
@@ -274,11 +276,13 @@ function formatNum(n) {
 
 function renderTable(rows) {
   if (!rows || !rows.length) return "<p>No data.</p>";
+
   let html = "<table><thead><tr>" +
     "<th>#</th><th>Name</th><th>Symbol</th>" +
     "<th>Price (USD)</th><th>Market Cap</th>" +
     "<th>24h Volume</th><th>Value ratio</th><th>24h %</th>" +
     "</tr></thead><tbody>";
+
   for (const r of rows) {
     html += "<tr>" +
       `<td>${r.rank}</td>` +
@@ -289,8 +293,9 @@ function renderTable(rows) {
       `<td>${formatNum(r.volume_24h)}</td>` +
       `<td>${Number(r.value_ratio).toFixed(6)}</td>` +
       `<td>${Number(r.momentum_24h).toFixed(2)}</td>` +
-      "</tr>";
+      "</tr>`;
   }
+
   html += "</tbody></table>";
   return html;
 }
