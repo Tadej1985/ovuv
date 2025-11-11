@@ -18,179 +18,179 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
   <style>
-  :root {
-    --bg: #020617;
-    --border: #1f2937;
-    --text: #e5e7eb;
-    --muted: #9ca3af;
-    --accent-green: #22c55e;
-    --accent-red: #ef4444;
-    --shadow: 0 18px 35px rgba(15,23,42,0.8);
-  }
+    :root {
+      --bg: #020617;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --shadow: 0 18px 35px rgba(15,23,42,0.8);
+    }
 
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Inter', system-ui, sans-serif;
-    background: radial-gradient(circle at top, #111827 0, var(--bg) 45%, #000 100%);
-    color: var(--text);
-    overflow-x: hidden;
-  }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top, #111827 0, var(--bg) 45%, #000 100%);
+      color: var(--text);
+      overflow-x: hidden;
+    }
 
-  header {
-    padding: 1rem 1.5rem 0.8rem;
-    background: rgba(2,6,23,0.88);
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    position: sticky;
-    top: 0;
-    z-index: 20;
-  }
+    header {
+      padding: 1rem 1.5rem 0.8rem;
+      background: rgba(2,6,23,0.88);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
 
-  h1 {
-    margin: 0;
-    font-size: 1.8rem;
-    display: flex;
-    align-items: baseline;
-    gap: 0.45rem;
-  }
+    h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.45rem;
+    }
 
-  .brand { font-weight: 800; }
-  .brand .o { color: var(--accent-red); }
-  .brand .u { color: var(--accent-green); }
+    .brand { font-weight: 800; }
+    .brand .o { color: var(--accent-red); }
+    .brand .u { color: var(--accent-green); }
 
-  .tagline {
-    font-size: 0.9rem;
-    color: var(--muted);
-    margin-top: 0.35rem;
-    line-height: 1.4;
-  }
+    .tagline {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      line-height: 1.4;
+    }
 
-  main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1.5rem;
-  }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
 
-  #status {
-    font-size: 0.86rem;
-    color: var(--muted);
-    margin-bottom: 1rem;
-    text-align: center;
-  }
+    #status {
+      font-size: 0.86rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
 
-  .banner {
-    margin: 0.5rem auto 1.8rem;
-    padding: 0.7rem;
-    border-radius: 14px;
-    background: rgba(17,24,39,0.9);
-    border: 1px dashed #facc15;
-    text-align: center;
-    font-size: 0.85rem;
-    color: #facc15;
-    max-width: 760px;
-  }
+    .banner {
+      margin: 0.5rem auto 1.8rem;
+      padding: 0.7rem;
+      border-radius: 14px;
+      background: rgba(17,24,39,0.9);
+      border: 1px dashed #facc15;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #facc15;
+      max-width: 780px;
+    }
 
-  .grid {
-    display: flex;
-    gap: 1.5rem;
-    justify-content: center;
-    align-items: start;
-    flex-wrap: wrap;
-  }
+    .grid {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      align-items: start;
+      flex-wrap: wrap;
+    }
 
-  .card {
-    background: rgba(2,6,23,0.96);
-    border-radius: 16px;
-    padding: 1rem;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    width: 100%;
-    max-width: 580px;
-    flex: 1 1 480px;
-  }
+    .card {
+      background: rgba(2,6,23,0.96);
+      border-radius: 16px;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 620px;
+      flex: 1 1 580px;
+    }
 
-  h2 {
-    margin: 0 0 0.8rem;
-    font-size: 1.05rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+    h2 {
+      margin: 0 0 0.8rem;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-  .badge {
-    font-size: 0.7rem;
-    padding: 0.18rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid var(--accent-green);
-    color: #bbf7d0;
-    background: rgba(34,197,94,0.11);
-  }
-  .badge.red {
-    border-color: var(--accent-red);
-    color: #fecaca;
-    background: rgba(239,68,68,0.11);
-  }
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.18rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid var(--accent-green);
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.11);
+    }
 
-  .table-wrapper {
-    overflow-y: auto;
-    overflow-x: hidden;
-    max-height: 520px;
-  }
+    .badge.red {
+      border-color: var(--accent-red);
+      color: #fecaca;
+      background: rgba(239,68,68,0.11);
+    }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-    font-size: 0.8rem;
-  }
+    .table-wrapper {
+      overflow-y: auto;
+      overflow-x: hidden;
+      max-height: 520px;
+    }
 
-  th, td {
-    padding: 0.4rem 0.35rem;
-    border-bottom: 1px solid #0b1120;
-    text-align: right;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 0.8rem;
+    }
 
-  th:first-child, td:first-child { text-align: left; width: 2.2rem; }
-  th:nth-child(2), td:nth-child(2) { text-align: left; width: 7.5rem; }
-  th:nth-child(3), td:nth-child(3) { width: 4.5rem; }
-  th:nth-child(4), td:nth-child(4) { width: 6.5rem; }
-  th:nth-child(5), td:nth-child(5) { width: 7.5rem; }
-  th:nth-child(6), td:nth-child(6) { width: 7.5rem; }
-  th:nth-child(7), td:nth-child(7) { width: 7rem; }
-  th:nth-child(8), td:nth-child(8) { width: 4rem; }
+    th, td {
+      padding: 0.45rem 0.4rem;
+      border-bottom: 1px solid #0b1120;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-  th {
-    position: sticky;
-    top: 0;
-    background: #020617;
-    font-weight: 600;
-    z-index: 1;
-  }
+    th:first-child, td:first-child { text-align: left; width: 2.2rem; }
+    th:nth-child(2), td:nth-child(2) { text-align: left; width: 7.5rem; }
+    th:nth-child(3), td:nth-child(3) { width: 4.5rem; }
+    th:nth-child(4), td:nth-child(4) { width: 6.5rem; }
+    th:nth-child(5), td:nth-child(5) { width: 8rem; }
+    th:nth-child(6), td:nth-child(6) { width: 8rem; }
+    th:nth-child(7), td:nth-child(7) { width: 7rem; }
+    th:nth-child(8), td:nth-child(8) { width: 4rem; }
 
-  tr:nth-child(odd) { background: rgba(15,23,42,0.8); }
-  tr:nth-child(even) { background: rgba(15,23,42,0.6); }
-  tr:hover { background: #111827; }
+    th {
+      position: sticky;
+      top: 0;
+      background: #020617;
+      font-weight: 600;
+      z-index: 1;
+    }
 
-  footer {
-    margin-top: 2rem;
-    font-size: 0.78rem;
-    color: var(--muted);
-    text-align: center;
-    padding-top: 0.9rem;
-    border-top: 1px solid var(--border);
-  }
+    tr:nth-child(odd) { background: rgba(15,23,42,0.8); }
+    tr:nth-child(even) { background: rgba(15,23,42,0.6); }
+    tr:hover { background: #111827; }
 
-  @media (max-width: 900px) {
-    .card { max-width: 100%; }
-    table { font-size: 0.75rem; }
-  }
-</style>
+    footer {
+      margin-top: 2rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      padding-top: 0.9rem;
+      border-top: 1px solid var(--border);
+    }
 
+    @media (max-width: 900px) {
+      .card { max-width: 100%; }
+      table { font-size: 0.75rem; }
+    }
+  </style>
 </head>
 <body>
 <header>
@@ -212,16 +212,7 @@
   </div>
 
   <div class="grid">
-    <div class="card">
-      <h2>
-        <span>🏆 Top 25 Undervalued</span>
-        <span class="badge">Higher volume vs market cap</span>
-      </h2>
-      <div class="table-wrapper">
-        <div id="under-table">Loading…</div>
-      </div>
-    </div>
-
+    <!-- LEFT (RED): OVERVALUED -->
     <div class="card">
       <h2>
         <span>⚠️ Top 25 Overvalued</span>
@@ -229,6 +220,17 @@
       </h2>
       <div class="table-wrapper">
         <div id="over-table">Loading…</div>
+      </div>
+    </div>
+
+    <!-- RIGHT (GREEN): UNDERVALUED -->
+    <div class="card">
+      <h2>
+        <span>🏆 Top 25 Undervalued</span>
+        <span class="badge">Higher volume vs market cap</span>
+      </h2>
+      <div class="table-wrapper">
+        <div id="under-table">Loading…</div>
       </div>
     </div>
   </div>
