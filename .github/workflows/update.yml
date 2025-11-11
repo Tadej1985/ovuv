@@ -2,7 +2,7 @@ name: Update Crypto Data
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes (UTC)
+    - cron: "*/480 * * * *"   # every 30 minutes (UTC)
   workflow_dispatch:
 
 permissions:
