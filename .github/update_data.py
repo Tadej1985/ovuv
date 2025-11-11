@@ -9,7 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-COINCAP_URL = "https://api.coincap.io/v2/assets"
+COINCAP_URL = "https://rest.coincap.io/v2/assets"
 
 
 def make_session() -> requests.Session:
