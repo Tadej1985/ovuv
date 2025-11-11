@@ -24,7 +24,7 @@ jobs:
 
       - name: Run update script
         run: |
-          python update_data.py
+          python .github/update_data.py
 
       - name: Commit and push updated data.json
         run: |
