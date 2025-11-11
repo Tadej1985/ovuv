@@ -31,4 +31,4 @@ jobs:
           COINCAPSECRET: ${{ secrets.COINCAPSECRET }} 
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python your_script_name.py
+          python .github/update_data.py
