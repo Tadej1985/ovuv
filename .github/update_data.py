@@ -8,15 +8,35 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# ✅ v3 base URL
+# Import Gemini Libraries
+import google.genai as genai
+from google.genai import types 
+from google.genai.errors import APIError
+
+# --- CONFIGURATION ---
+# CoinCap API
 COINCAP_URL = "https://rest.coincap.io/v3/assets"
-API_KEY = os.getenv("COINCAPSECRET", "")
+COINCAP_API_KEY = os.getenv("COINCAPSECRET", "")
+
+# Gemini API
+# This client will automatically use the GEMINI_API_KEY environment variable.
+try:
+    gemini_client = genai.Client()
+except Exception as e:
+    print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
+    gemini_client = None
+
+# Scoring Weights (Total must equal 1.0)
+VALUE_WEIGHT = 0.4
+MOMENTUM_WEIGHT = 0.3
+FUNDAMENTAL_WEIGHT = 0.3
+# Number of coins to analyze with Gemini (25 Undervalued + 25 Overvalued)
+ANALYSIS_LIMIT = 25 
+# --- END CONFIGURATION ---
 
 
 def make_session() -> requests.Session:
-    """
-    Requests session with retries/backoff for transient network issues.
-    """
+    """Requests session with retries/backoff for transient network issues."""
     retry = Retry(
         total=5,
         connect=5,
@@ -27,7 +47,6 @@ def make_session() -> requests.Session:
         raise_on_status=False,
     )
     adapter = HTTPAdapter(max_retries=retry)
-
     s = requests.Session()
     s.headers.update({"User-Agent": "OVUV/1.0 (https://ovuv.io)"})
     s.mount("https://", adapter)
@@ -36,17 +55,14 @@ def make_session() -> requests.Session:
 
 
 def fetch_coins(limit: int = 200, session: requests.Session | None = None) -> pd.DataFrame:
-    """
-    Fetch top N assets from CoinCap v3.
-    Expects COINCAP_API_KEY to be set.
-    """
-    if not API_KEY:
-        raise RuntimeError("COINCAP_API_KEY is not set")
+    """Fetch top N assets from CoinCap v3."""
+    if not COINCAP_API_KEY:
+        raise RuntimeError("COINCAPSECRET is not set")
 
     s = session or make_session()
     params = {
         "limit": limit,
-        "apiKey": API_KEY,  # v3 expects an apiKey param
+        "apiKey": COINCAP_API_KEY,  # v3 expects an apiKey param
     }
     resp = s.get(COINCAP_URL, params=params, timeout=30)
     resp.raise_for_status()
@@ -58,42 +74,116 @@ def fetch_coins(limit: int = 200, session: requests.Session | None = None) -> pd
 
 
 def zscore(series: pd.Series) -> pd.Series:
+    """Calculate the Z-Score for a pandas Series."""
     std = series.std(ddof=0)
     if std == 0 or pd.isna(std):
         return pd.Series([0] * len(series), index=series.index)
     return (series - series.mean()) / std
 
 
+def get_fundamental_score(coin_name: str, symbol: str) -> float:
+    """
+    Uses the Gemini API with Google Search Grounding to generate a fundamental score.
+    Returns a score between 1.0 and 5.0.
+    """
+    if not gemini_client:
+        return 3.0 # Return neutral if client not initialized
+
+    prompt = (
+        f"Search for and summarize the latest development, partnership, and core team news "
+        f"for the crypto project: {coin_name} ({symbol}) from the **last 8 hours**. "
+        f"Then, rate the project's **long-term fundamental strength** "
+        f"on a scale from 1.0 (Very Weak/Negative News) to 5.0 (Very Strong/Positive News) "
+        f"based ONLY on the fresh news. Output ONLY the numerical score."
+    )
+    
+    try:
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[prompt],
+            config=types.GenerateContentConfig(
+                # CRITICAL: This enables Google Search Grounding for real-time data
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+            ),
+            # Guide the model to act as an analyst and output only a number
+            system_instruction="You are a rational, expert cryptocurrency analyst. Your task is to output ONLY a single numerical rating from 1.0 to 5.0.",
+        )
+        
+        # Attempt to clean and parse the response text into a float
+        score_text = response.text.strip()
+        score = float(score_text.split()[0]) # Tries to get the first number if any other text is included
+        
+        # Ensure the score is within the defined range
+        return max(1.0, min(5.0, score))
+        
+    except (APIError, ValueError) as e:
+        print(f"   [GEMINI ERROR] Failed to score {symbol}. Error: {e!r}. Using neutral score.")
+        return 3.0 # Neutral score on API failure
+
+
 def compute_scores(limit: int = 200) -> dict:
-    """
-    Returns:
-      - updated: timestamp (UTC)
-      - currency: "USD"
-      - top_undervalued: 25 rows
-      - top_overvalued: 25 rows
-    """
+    """Compute all scores and lists."""
     session = make_session()
     df = fetch_coins(limit=limit, session=session)
 
-    # v3 should still provide these fields (as strings)
+    # Convert columns to numeric and drop NaNs
     for col in ["rank", "priceUsd", "marketCapUsd", "volumeUsd24Hr", "changePercent24Hr"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     df = df.dropna(subset=["rank", "priceUsd", "marketCapUsd", "volumeUsd24Hr", "changePercent24Hr"])
     df = df[df["marketCapUsd"] > 0]
 
+    # Standardize column names
     df["current_price"] = df["priceUsd"]
     df["market_cap"] = df["marketCapUsd"]
     df["volume_24h"] = df["volumeUsd24Hr"]
     df["momentum_24h"] = df["changePercent24Hr"]
-
     df["value_ratio"] = df["volume_24h"] / df["market_cap"]
 
+    # 1. QUANTITATIVE COMPONENTS (Z-Scores)
     df["value_component"] = zscore(df["value_ratio"])
-    df["momentum_component"] = zscore(-df["momentum_24h"])
+    df["momentum_component"] = zscore(-df["momentum_24h"]) # Negative change is a sign of undervalue
 
-    df["undervalue_score"] = 0.6 * df["value_component"] + 0.4 * df["momentum_component"]
+    # 2. FUNDAMENTAL COMPONENT (Gemini Analysis)
+    df["fundamental_score"] = 3.0 # Default neutral score (1.0 to 5.0 range)
+    print("\n--- Starting Gemini Fundamental Analysis ---")
+    
+    # Calculate a simple initial score to identify top candidates for analysis
+    df["initial_score"] = 0.5 * df["value_component"] + 0.5 * df["momentum_component"]
+    
+    # Get the top candidates for Undervalue and Overvalue lists
+    df_temp = df.sort_values("initial_score", ascending=False)
+    
+    # Select the top 25 for Undervalue and bottom 25 for Overvalue
+    undervalue_candidates = df_temp.head(ANALYSIS_LIMIT)
+    overvalue_candidates = df_temp.tail(ANALYSIS_LIMIT)
 
+    # Combine candidates to run Gemini on (50 requests total)
+    analysis_indices = pd.concat([undervalue_candidates, overvalue_candidates]).index.unique()
+    
+    for index in analysis_indices:
+        row = df.loc[index]
+        print(f"-> Analyzing {row['name']} ({row['symbol']})...")
+        
+        # Get score using Gemini
+        gemini_score = get_fundamental_score(row["name"], row["symbol"])
+        df.loc[index, "fundamental_score"] = gemini_score
+        print(f"   [RESULT] Score: {gemini_score:.1f}")
+
+    print("--- Gemini Analysis Complete ---\n")
+    
+    # 3. FINAL COMPOSITE SCORE
+    # Normalize the 1.0-5.0 score into a Z-Score to combine with other Z-Scores
+    df["fundamental_component"] = zscore(df["fundamental_score"])
+    
+    # Calculate the weighted final score
+    df["undervalue_score"] = (
+        VALUE_WEIGHT * df["value_component"] +
+        MOMENTUM_WEIGHT * df["momentum_component"] +
+        FUNDAMENTAL_WEIGHT * df["fundamental_component"]
+    )
+
+    # Sort results
     df_under = df.sort_values("undervalue_score", ascending=False).reset_index(drop=True)
     df_under["rank"] = df_under.index + 1
 
@@ -110,17 +200,18 @@ def compute_scores(limit: int = 200) -> dict:
         "volume_24h",
         "value_ratio",
         "momentum_24h",
+        "fundamental_score", # Keep the raw 1-5 score for display
         "undervalue_score",
     ]
 
     top_undervalued = (
-        df_under.head(25)[keep_cols]
+        df_under.head(ANALYSIS_LIMIT)[keep_cols]
         .assign(symbol=lambda d: d["symbol"].str.upper())
         .to_dict(orient="records")
     )
 
     top_overvalued = (
-        df_over.head(25)[keep_cols]
+        df_over.head(ANALYSIS_LIMIT)[keep_cols]
         .assign(symbol=lambda d: d["symbol"].str.upper())
         .to_dict(orient="records")
     )
@@ -147,7 +238,6 @@ def main():
         )
     except Exception as e:
         print(f"ERROR while updating data: {e!r}")
-        # Keep existing data.json if present, to avoid breaking the site
         if out_path.exists():
             print("Keeping existing docs/data.json (no update).")
         else:
