@@ -36,7 +36,7 @@ def make_session() -> requests.Session:
 
 def fetch_coins(limit: int = 200, session: requests.Session | None = None) -> pd.DataFrame:
     """
-    Fetch top N assets from CoinCap.
+    Fetch top N assets from .
     """
     s = session or make_session()
     resp = s.get(COINCAP_URL, params={"limit": limit}, timeout=30)
