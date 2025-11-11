@@ -10,7 +10,7 @@ from urllib3.util.retry import Retry
 
 # ✅ v3 base URL
 COINCAP_URL = "https://rest.coincap.io/v3/assets"
-API_KEY = os.getenv("COINCAP_API_KEY", "")
+API_KEY = os.getenv("COINCAPSECRET", "")
 
 
 def make_session() -> requests.Session:
