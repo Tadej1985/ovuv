@@ -2,6 +2,7 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
+import re # Added for robust score parsing
 
 import pandas as pd
 import requests
@@ -14,25 +15,20 @@ from google.genai import types
 from google.genai.errors import APIError
 
 # --- CONFIGURATION ---
-# CoinCap API URL (Note: CoinCap v2 or v3 typically requires a Bearer token in headers, 
-# but the provided URL is a common REST endpoint)
-# NOTE: The provided CoinCap URL is for v3 and is used as-is.
 COINCAP_URL = "https://rest.coincap.io/v3/assets"
 COINCAP_API_KEY = os.getenv("COINCAPSECRET", "")
 
 # Gemini Client
+gemini_client = None
 try:
-    # The client automatically picks up the GEMINI_API_KEY environment variable.
     gemini_client = genai.Client()
 except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
-    gemini_client = None
-
+    
 # Scoring Weights (Total must equal 1.0)
 VALUE_WEIGHT = 0.4
 MOMENTUM_WEIGHT = 0.3
 FUNDAMENTAL_WEIGHT = 0.3
-# Number of coins to analyze with Gemini (25 Undervalued + 25 Overvalued)
 ANALYSIS_LIMIT = 25 
 # --- END CONFIGURATION ---
 
@@ -65,9 +61,7 @@ def fetch_coins(limit: int = 200, session: requests.Session | None = None) -> pd
         raise RuntimeError("COINCAPSECRET is not set. Cannot fetch data.")
 
     s = session or make_session()
-    params = {
-        "limit": limit,
-    }
+    params = {"limit": limit}
     resp = s.get(COINCAP_URL, params=params, timeout=30)
     resp.raise_for_status()
     body = resp.json()
@@ -82,7 +76,6 @@ def zscore(series: pd.Series) -> pd.Series:
     std = series.std(ddof=0)
     if std == 0 or pd.isna(std):
         return pd.Series([0] * len(series), index=series.index)
-    # Z-score formula: (X - mu) / sigma
     return (series - series.mean()) / std
 
 
@@ -92,7 +85,7 @@ def get_fundamental_score(coin_name: str, symbol: str) -> float:
     Returns a score between 1.0 and 5.0.
     """
     if not gemini_client:
-        return 3.0 # Return neutral if client not initialized
+        return 3.0 # Neutral score if Gemini is unavailable
 
     prompt = (
         f"Search for and summarize the latest development, partnership, and core team news "
@@ -102,7 +95,6 @@ def get_fundamental_score(coin_name: str, symbol: str) -> float:
         f"based ONLY on the fresh news. Output ONLY the numerical score."
     )
     
-    # 🌟 FIX: The system instruction MUST be inside GenerateContentConfig
     system_prompt = "You are a rational, expert cryptocurrency analyst. Your task is to output ONLY a single numerical rating from 1.0 to 5.0."
 
     try:
@@ -110,24 +102,18 @@ def get_fundamental_score(coin_name: str, symbol: str) -> float:
             model='gemini-2.5-flash',
             contents=[prompt],
             config=types.GenerateContentConfig(
-                # System instruction is correctly placed here to resolve the error
                 system_instruction=system_prompt,
-                # CRITICAL: This enables Google Search Grounding for real-time data (1 RPD)
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
         
-        # Attempt to clean and parse the response text into a float
-        score_text = response.text.strip()
-        # Find the first number (float) in the text
-        import re
-        match = re.search(r'\d+\.?\d*', score_text)
+        # Robust parsing: find the first number (float) in the text
+        match = re.search(r'\d+\.?\d*', response.text.strip())
         if match:
             score = float(match.group(0))
         else:
             raise ValueError("Model output did not contain a recognizable number.")
 
-        # Ensure the score is within the defined range
         return max(1.0, min(5.0, score))
         
     except (APIError, ValueError) as e:
@@ -136,56 +122,51 @@ def get_fundamental_score(coin_name: str, symbol: str) -> float:
 
 
 def compute_scores(limit: int = 200) -> dict:
-    """Compute all scores and lists."""
+    """Compute all scores and lists, saving combined data to a single output file."""
     session = make_session()
     df = fetch_coins(limit=limit, session=session)
 
-    # Convert columns to numeric and drop NaNs
+    # --- 1. INITIAL DATA CLEANING AND QUANTITATIVE SCORES ---
     for col in ["rank", "priceUsd", "marketCapUsd", "volumeUsd24Hr", "changePercent24Hr"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-
     df = df.dropna(subset=["rank", "priceUsd", "marketCapUsd", "volumeUsd24Hr", "changePercent24Hr"])
     df = df[df["marketCapUsd"] > 0]
 
-    # Standardize column names
     df["current_price"] = df["priceUsd"].round(4)
     df["market_cap"] = df["marketCapUsd"].astype(float)
     df["volume_24h"] = df["volumeUsd24Hr"].astype(float)
     df["momentum_24h"] = df["changePercent24Hr"].astype(float).round(2)
     df["value_ratio"] = df["volume_24h"] / df["market_cap"]
 
-    # 1. QUANTITATIVE COMPONENTS (Z-Scores)
     df["value_component"] = zscore(df["value_ratio"])
-    # Negative change is a sign of undervalue, so we invert the Z-score for momentum
     df["momentum_component"] = zscore(-df["momentum_24h"]) 
-
-    # 2. FUNDAMENTAL COMPONENT (Gemini Analysis)
-    df["fundamental_score"] = 3.0 # Default neutral score (1.0 to 5.0 range)
-    print("\n--- Starting Gemini Fundamental Analysis ---")
-    
-    # Calculate a simple initial score to identify top candidates for analysis
     df["initial_score"] = 0.5 * df["value_component"] + 0.5 * df["momentum_component"]
     
-    # Select the top 25 for Undervalue and bottom 25 for Overvalue based on initial score
-    df_temp = df.sort_values("initial_score", ascending=False)
-    undervalue_candidates = df_temp.head(ANALYSIS_LIMIT)
-    overvalue_candidates = df_temp.tail(ANALYSIS_LIMIT)
-
-    # Combine candidates to run Gemini on (max 50 requests total)
-    analysis_indices = pd.concat([undervalue_candidates, overvalue_candidates]).index.unique()
+    # --- 2. GEMINI ANALYSIS ---
+    df["fundamental_score"] = 3.0 # Default neutral score (1.0 to 5.0 range)
     
-    for index in analysis_indices:
-        row = df.loc[index]
-        print(f"-> Analyzing {row['name']} ({row['symbol']})...")
+    if gemini_client:
+        print("\n--- Starting Gemini Fundamental Analysis ---")
         
-        # Get score using Gemini
-        gemini_score = get_fundamental_score(row["name"], row["symbol"])
-        df.loc[index, "fundamental_score"] = gemini_score
-        print(f"   [RESULT] Score: {gemini_score:.1f}")
+        # Select the top 25 for Undervalue and bottom 25 for Overvalue based on initial score
+        df_temp = df.sort_values("initial_score", ascending=False)
+        undervalue_candidates = df_temp.head(ANALYSIS_LIMIT)
+        overvalue_candidates = df_temp.tail(ANALYSIS_LIMIT)
+        analysis_indices = pd.concat([undervalue_candidates, overvalue_candidates]).index.unique()
+        
+        for index in analysis_indices:
+            row = df.loc[index]
+            print(f"-> Analyzing {row['name']} ({row['symbol']})...")
+            
+            gemini_score = get_fundamental_score(row["name"], row["symbol"])
+            df.loc[index, "fundamental_score"] = gemini_score
+            print(f"   [RESULT] Score: {gemini_score:.1f}")
 
-    print("--- Gemini Analysis Complete ---\n")
-    
-    # 3. FINAL COMPOSITE SCORE
+        print("--- Gemini Analysis Complete ---")
+    else:
+        print("\n--- Skipping Gemini Analysis (Client not initialized). All fundamental scores are 3.0. ---")
+
+    # --- 3. FINAL COMPOSITE SCORE (ALWAYS CALCULATED) ---
     # Normalize the 1.0-5.0 raw score into a Z-Score for combination
     df["fundamental_component"] = zscore(df["fundamental_score"])
     
@@ -203,6 +184,7 @@ def compute_scores(limit: int = 200) -> dict:
     df_over = df.sort_values("undervalue_score", ascending=True).reset_index(drop=True)
     df_over["rank"] = df_over.index + 1
 
+    # Define columns to keep for the final output file
     keep_cols = [
         "rank",
         "id",
@@ -211,10 +193,10 @@ def compute_scores(limit: int = 200) -> dict:
         "current_price",
         "market_cap",
         "volume_24h",
-        "value_ratio",
         "momentum_24h",
         "fundamental_score", # Raw 1-5 score from Gemini
-        "undervalue_score",
+        "undervalue_score", # The score used for ranking (Composite)
+        "value_ratio",
     ]
 
     top_undervalued = (
@@ -240,20 +222,25 @@ def compute_scores(limit: int = 200) -> dict:
 def main():
     docs_dir = Path("docs")
     docs_dir.mkdir(exist_ok=True)
-    out_path = docs_dir / "data.json"
+    out_path = docs_dir / "data.json" # Reverting to the original single file
 
     try:
         data = compute_scores(limit=200)
+        
+        # ALWAYS write the combined data file
         out_path.write_text(json.dumps(data, indent=2))
+        
         print(
-            f"Successfully updated {len(data['top_undervalued'])} undervalued "
+            f"Successfully updated combined data.json with {len(data['top_undervalued'])} undervalued "
             f"and {len(data['top_overvalued'])} overvalued coins at {data['updated']}"
         )
+
     except Exception as e:
-        print(f"ERROR while updating data: {e!r}")
+        print(f"FATAL ERROR during data processing: {e!r}")
         if out_path.exists():
             print("Keeping existing docs/data.json (no update).")
         else:
+            # Write a placeholder if fetch failed and no file exists
             placeholder = {
                 "updated": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                 "currency": "USD",
