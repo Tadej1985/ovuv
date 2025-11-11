@@ -34,7 +34,7 @@
       font-family: 'Inter', system-ui, sans-serif;
       background: radial-gradient(circle at top, #111827 0, var(--bg) 45%, #000 100%);
       color: var(--text);
-      overflow-x: hidden;
+      /* Removed overflow-x: hidden; to allow potential table overflow if necessary */
     }
 
     header {
@@ -93,7 +93,8 @@
 
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      /* Using a flexible max-width and margin: auto; on the cards makes them center better */
+      grid-template-columns: 1fr 1fr; 
       gap: 2rem;
       justify-content: center;
       align-items: start;
@@ -108,7 +109,8 @@
       border: 1px solid var(--border);
       box-shadow: var(--shadow);
       width: 100%;
-      max-width: 660px;
+      /* Max width removed here since the grid handles it, but kept it for centering on mobile */
+      /* max-width: 660px; */ 
     }
 
     h2 {
@@ -136,14 +138,15 @@
 
     .table-wrapper {
       overflow-y: auto;
-      overflow-x: hidden;
+      /* Changed to 'auto' to allow horizontal scrolling if the table is too wide */
+      overflow-x: auto; 
       max-height: 520px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      table-layout: fixed;
+      /* Removed table-layout: fixed; to allow columns to adjust their width */
       font-size: 0.8rem;
     }
 
@@ -151,20 +154,18 @@
       padding: 0.5rem 0.45rem;
       border-bottom: 1px solid #0b1120;
       text-align: right;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      /* Removed overflow/text-overflow/white-space to ensure all content is displayed */
     }
 
-    /* Column widths so big numbers fit */
-    th:first-child, td:first-child { text-align: left; width: 2.2rem; }   /* # */
-    th:nth-child(2), td:nth-child(2) { text-align: left; width: 8rem; }   /* Name */
-    th:nth-child(3), td:nth-child(3) { width: 4.5rem; }                   /* Symbol */
-    th:nth-child(4), td:nth-child(4) { width: 7rem; }                     /* Price */
-    th:nth-child(5), td:nth-child(5) { width: 9rem; }                     /* Market Cap */
-    th:nth-child(6), td:nth-child(6) { width: 9rem; }                     /* 24h Vol */
-    th:nth-child(7), td:nth-child(7) { width: 7.5rem; }                   /* Value ratio */
-    th:nth-child(8), td:nth-child(8) { width: 4.5rem; }                   /* 24h % */
+    /* Keep rank column left-aligned */
+    th:first-child, td:first-child { 
+        text-align: left; 
+    } 
+    /* Keep name column left-aligned */
+    th:nth-child(2), td:nth-child(2) { 
+        text-align: left; 
+    } 
+    /* Removed all specific column width rules */
 
     th {
       position: sticky;
@@ -189,6 +190,7 @@
 
     @media (max-width: 1000px) {
       .grid {
+        /* On smaller screens, stack the cards */
         grid-template-columns: 1fr;
       }
       .card {
@@ -220,7 +222,6 @@
   </div>
 
   <div class="grid">
-    <!-- LEFT (RED): OVERVALUED -->
     <div class="card">
       <h2>
         <span>⚠️ Top 25 Overvalued</span>
@@ -231,7 +232,6 @@
       </div>
     </div>
 
-    <!-- RIGHT (GREEN): UNDERVALUED -->
     <div class="card">
       <h2>
         <span>🏆 Top 25 Undervalued</span>
@@ -250,24 +250,31 @@
 </main>
 
 <script>
+// *** IMPORTANT: REPLACE THIS PLACEHOLDER WITH THE RAW URL OF YOUR data.json FILE ON GITHUB ***
+// Example format: https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/YOUR_BRANCH/data.json
+const DATA_URL = "https://raw.githubusercontent.com/USERNAME/REPO/BRANCH/data.json";
+
 async function loadData() {
   const status = document.getElementById("status");
   try {
-    status.textContent = "Loading data…";
-    const res = await fetch("data.json?cb=" + Date.now());
+    status.textContent = "Loading data from GitHub…";
+    // Use the full raw URL and bypass cache with cb parameter
+    const res = await fetch(DATA_URL + "?cb=" + Date.now()); 
     if (!res.ok) throw new Error("HTTP " + res.status);
     const json = await res.json();
     status.textContent = "Last updated: " + json.updated + " — Currency: " + json.currency;
     renderTables(json.top_undervalued, json.top_overvalued);
   } catch (e) {
     console.error(e);
-    status.textContent = "Error loading data: " + e.message;
+    status.textContent = "Error loading data: " + e.message + ". Check the console for more details and ensure the DATA_URL is correct.";
   }
 }
 
 function formatNum(n) {
   const v = Number(n);
   if (!isFinite(v)) return "-";
+  // Added a check for very small numbers to format Price more appropriately
+  if (Math.abs(v) < 0.0001 && Math.abs(v) > 0) return v.toExponential(2); 
   if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + "B";
   if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
   if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(2) + "K";
@@ -284,16 +291,34 @@ function renderTable(rows) {
     "</tr></thead><tbody>";
 
   for (const r of rows) {
+    // Determine the number of decimal places for price
+    const price = Number(r.current_price);
+    let priceDecimals = 4;
+    if (price >= 1) {
+        priceDecimals = 2;
+    } else if (price < 0.0001) {
+        priceDecimals = 8; // Show more decimals for very small prices
+    }
+    
+    // Add color to 24h %
+    const momentum = Number(r.momentum_24h);
+    let momentumColor = 'inherit';
+    if (momentum > 0) {
+        momentumColor = 'var(--accent-green)';
+    } else if (momentum < 0) {
+        momentumColor = 'var(--accent-red)';
+    }
+
     html += "<tr>" +
       `<td>${r.rank}</td>` +
       `<td>${r.name}</td>` +
       `<td>${r.symbol}</td>` +
-      `<td>${Number(r.current_price).toFixed(4)}</td>` +
-      `<td>${formatNum(r.market_cap)}</td>` +
-      `<td>${formatNum(r.volume_24h)}</td>` +
+      `<td>${price.toFixed(priceDecimals)}</td>` +
+      `<td>$${formatNum(r.market_cap)}</td>` +
+      `<td>$${formatNum(r.volume_24h)}</td>` +
       `<td>${Number(r.value_ratio).toFixed(6)}</td>` +
-      `<td>${Number(r.momentum_24h).toFixed(2)}</td>` +
-      "</tr>`;
+      `<td style="color:${momentumColor};">${momentum.toFixed(2)}%</td>` +
+      "</tr>";
   }
 
   html += "</tbody></table>";
