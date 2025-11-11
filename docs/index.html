@@ -1,361 +1,425 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>OVUV — Crypto Undervalued &amp; Overvalued Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>OVUV — Crypto Undervalued & Overvalued Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated automatically using live market data from CoinCap, enhanced with Gemini's fundamental analysis.">
-  <meta property="og:title" content="OVUV — Crypto Undervaluation Tracker (Gemini Analysis)">
-  <meta property="og:description" content="Top 25 undervalued &amp; overvalued cryptos, ranked by Composite Score (Volume/Momentum + Gemini Fundamental Score).">
-  <meta property="og:type" content="website">
+  <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated automatically every 8 hours using live market data from CoinCap, enhanced with Gemini's fundamental analysis.">
+  <meta property="og:title" content="OVUV — Crypto Undervaluation Tracker">
+  <meta property="og:description" content="Top 25 undervalued & overvalued cryptos. Updated every 8 hours using CoinCap data and Gemini fundamental analysis.">
+  <meta property="og:type" content="website">
 
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    :root {
-      --bg: #020617;
-      --border: #1f2937;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent-green: #22c55e;
-      --accent-red: #ef4444;
-      --accent-yellow: #f59e0b; /* New color for neutral/caution */
-      --shadow: 0 18px 35px rgba(15,23,42,0.8);
-    }
-
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', system-ui, sans-serif;
-      background: radial-gradient(circle at top, #111827 0, var(--bg) 45%, #000 100%);
-      color: var(--text);
-    }
-
-    header {
-      padding: 1rem 1.5rem 0.8rem;
-      background: rgba(2,6,23,0.88);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      position: sticky;
-      top: 0;
-      z-index: 20;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 1.8rem;
-      display: flex;
-      align-items: baseline;
-      gap: 0.45rem;
-    }
-
-    .brand { font-weight: 800; }
-    .brand .o { color: var(--accent-red); }
-    .brand .u { color: var(--accent-green); }
-
-    .tagline {
-      font-size: 0.9rem;
-      color: var(--muted);
-      margin-top: 0.35rem;
-      line-height: 1.4;
-    }
-    
-    /* New style to highlight the fundamental score in the table */
-    .fund-score-col {
-        font-weight: 700 !important;
-        font-size: 1.05rem;
-    }
-    .composite-score-col {
-        font-weight: 600 !important;
-        color: var(--text); /* Default color for the score */
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-card: #0f1220;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --shadow: 0 20px 40px rgba(0,0,0,0.8);
     }
 
-    main {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 1.5rem;
-    }
-
-    #status {
-      font-size: 0.86rem;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-
-    .banner {
-      margin: 0.5rem auto 1.8rem;
-      padding: 0.7rem;
-      border-radius: 14px;
-      background: rgba(17,24,39,0.9);
-      border: 1px dashed #facc15;
-      text-align: center;
-      font-size: 0.85rem;
-      color: #facc15;
-      max-width: 780px;
-    }
-
-    .grid {
-      display: grid;
-      /* Grid template for side-by-side tables */
-      grid-template-columns: 1fr 1fr; 
-      gap: 2rem;
-      justify-content: center;
-      align-items: start;
-      max-width: 1350px;
-      margin: 0 auto;
-    }
-
-    .card {
-      background: rgba(2,6,23,0.96);
-      border-radius: 16px;
-      padding: 1.1rem;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      width: 100%;
-    }
-
-    h2 {
-      margin: 0 0 0.8rem;
-      font-size: 1.05rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .badge {
-      font-size: 0.7rem;
-      padding: 0.18rem 0.6rem;
-      border-radius: 999px;
-      border: 1px solid var(--accent-green);
-      color: #bbf7d0;
-      background: rgba(34,197,94,0.11);
-    }
-
-    .badge.red {
-      border-color: var(--accent-red);
-      color: #fecaca;
-      background: rgba(239,68,68,0.11);
-    }
-
-    /* New badge style for Gemini scoring */
-    .badge.gemini {
-        border-color: #3b82f6; /* Blue border */
-        color: #bfdbfe; /* Light blue text */
-        background: rgba(59, 130, 246, 0.11); /* Light blue background */
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%);
+      color: var(--text);
     }
 
-    .table-wrapper {
-      overflow-y: auto;
-      /* Allows horizontal scrolling if the table content is too wide */
-      overflow-x: auto; 
-      max-height: 520px;
-    }
+    header {
+      padding: 1.5rem 1.5rem 1rem;
+      background: rgba(2,6,23,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      /* Removed fixed layout */
-      font-size: 0.8rem;
-    }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      font-weight: 800;
+    }
 
-    th, td {
-      padding: 0.5rem 0.45rem;
-      border-bottom: 1px solid #0b1120;
-      text-align: right;
-      /* Removed truncation rules to show all content */
-    }
+    .brand { font-weight: 800; letter-spacing: -0.02em; }
+    .brand .o { color: var(--accent-red); }
+    .brand .u { color: var(--accent-green); }
 
-    /* Left-align specific columns */
-    th:first-child, td:first-child,
-    th:nth-child(2), td:nth-child(2) { 
-        text-align: left; 
-    } 
+    .tagline {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      line-height: 1.5;
+      max-width: 900px;
+    }
 
-    th {
-      position: sticky;
-      top: 0;
-      background: #020617;
-      font-weight: 600;
-      z-index: 1;
-    }
+    main {
+      max-width: 1920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
 
-    tr:nth-child(odd) { background: rgba(15,23,42,0.8); }
-    tr:nth-child(even) { background: rgba(15,23,42,0.6); }
-    tr:hover { background: #111827; }
+    #status {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      text-align: center;
+      min-height: 1.5rem;
+    }
 
-    footer {
-      margin-top: 2rem;
-      font-size: 0.78rem;
-      color: var(--muted);
-      text-align: center;
-      padding-top: 0.9rem;
-      border-top: 1px solid var(--border);
-    }
+    .banner-top {
+      margin: 0 auto 2rem;
+      padding: 1rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(15,24,39,0.9) 0%, rgba(17,24,39,0.8) 100%);
+      border: 1px solid rgba(250,204,21,0.2);
+      text-align: center;
+      font-size: 0.9rem;
+      color: #fbbf24;
+      max-width: 900px;
+      box-shadow: 0 8px 24px rgba(250,204,21,0.05);
+    }
 
-    @media (max-width: 1000px) {
-      .grid {
-        /* On smaller screens, stack the cards */
-        grid-template-columns: 1fr;
-      }
-      .card {
-        max-width: 100%;
-      }
-      table {
-        font-size: 0.75rem;
-      }
-    }
-  </style>
+    .container {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+
+    .sidebar {
+      width: 180px;
+      flex-shrink: 0;
+    }
+
+    .banner-side {
+      position: sticky;
+      top: 8rem;
+      padding: 1.2rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(15,24,39,0.9) 0%, rgba(17,24,39,0.8) 100%);
+      border: 1px solid rgba(250,204,21,0.2);
+      text-align: center;
+      font-size: 0.85rem;
+      color: #fbbf24;
+      min-height: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(250,204,21,0.05);
+    }
+
+    .content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: rgba(15,18,32,0.95);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--accent-green);
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.12);
+      font-weight: 600;
+    }
+
+    .badge.red {
+      border-color: var(--accent-red);
+      color: #fecaca;
+      background: rgba(239,68,68,0.12);
+    }
+
+    .table-wrapper {
+      overflow-y: auto;
+      overflow-x: auto;
+      max-height: 600px;
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid rgba(31,41,55,0.5);
+      text-align: right;
+    }
+
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(2,6,23,0.98);
+      font-weight: 600;
+      z-index: 1;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.3px;
+    }
+
+    tr:nth-child(odd) { background: rgba(15,23,42,0.5); }
+    tr:nth-child(even) { background: rgba(15,23,42,0.35); }
+    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; }
+
+    footer {
+      margin-top: 3rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: #93c5fd;
+    }
+
+    @media (max-width: 1400px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        width: 160px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+      }
+      .banner-side {
+        min-height: auto;
+        padding: 2rem;
+      }
+      header {
+        padding: 1rem 1rem 0.6rem;
+      }
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      main {
+        padding: 1rem;
+      }
+      .grid {
+        gap: 1.5rem;
+      }
+      .card {
+        padding: 1rem;
+      }
+      h2 {
+        font-size: 1rem;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      table {
+        font-size: 0.75rem;
+      }
+      th, td {
+        padding: 0.4rem 0.3rem;
+      }
+      .table-wrapper {
+        max-height: 400px;
+      }
+    }
+  </style>
 </head>
 <body>
 <header>
-  <h1>
-    <span class="brand"><span class="o">O</span>V<span class="u">U</span>V</span>
-    <span style="font-size:0.9rem;font-weight:500;color:#9ca3af;">crypto undervaluation tracker</span>
-  </h1>
-  <div class="tagline">
-    Top 25 most undervalued &amp; top 25 most overvalued cryptocurrencies, **ranked by a Composite Score (Volume/Cap + Gemini Fundamental Analysis)**.<br>
-    Updated automatically every ~30 minutes. Data from CoinCap API. Not financial advice.
-  </div>
+  <h1>
+    <span class="brand"><span class="o">O</span>V<span class="u">U</span>V</span>
+    <span style="font-size:0.85rem;font-weight:500;color:#9ca3af;">crypto undervaluation tracker</span>
+  </h1>
+  <div class="tagline">
+    Top 25 most undervalued & top 25 most overvalued cryptocurrencies. Updated every 8 hours using live market data from <strong>CoinCap API</strong> and <strong>Gemini's fundamental analysis</strong>. Not financial advice.
+  </div>
 </header>
 
 <main>
-  <div id="status">Loading data…</div>
+  <div id="status">Loading data…</div>
 
-  <div class="banner">
-    Banner ad spot (e.g. 728×90 / responsive)
-  </div>
+  <div class="banner-top">
+    📢 Banner ad spot (728×90 / responsive)
+  </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>
-        <span>⚠️ Top 25 Overvalued</span>
-                <span class="badge red gemini">Lowest Composite Score</span>
-      </h2>
-      <div class="table-wrapper">
-        <div id="over-table">Loading…</div>
-      </div>
-    </div>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="banner-side">
+        <div>Left Banner<br />(160×600)</div>
+      </div>
+    </aside>
 
-    <div class="card">
-      <h2>
-        <span>🏆 Top 25 Undervalued</span>
-                <span class="badge gemini">Highest Composite Score</span>
-      </h2>
-      <div class="table-wrapper">
-        <div id="under-table">Loading…</div>
-      </div>
-    </div>
-  </div>
+    <div class="content">
+      <div class="grid">
+        <div class="card">
+          <h2>
+            <span>⚠️ Top 25 Overvalued</span>
+            <span class="badge red">Lowest Score</span>
+          </h2>
+          <div class="table-wrapper">
+            <div id="over-table">Loading…</div>
+          </div>
+        </div>
 
-  <footer>
-    Market data via <a href="https://coincap.io" target="_blank" rel="noopener">CoinCap API</a>.  
-    Undervaluation model is experimental and for informational purposes only. This is not financial advice.
-  </footer>
+        <div class="card">
+          <h2>
+            <span>🏆 Top 25 Undervalued</span>
+            <span class="badge">Highest Score</span>
+          </h2>
+          <div class="table-wrapper">
+            <div id="under-table">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="sidebar">
+      <div class="banner-side">
+        <div>Right Banner<br />(160×600)</div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    Market data via <a href="https://coincap.io" target="_blank" rel="noopener">CoinCap API</a> • Fundamental analysis powered by <a href="https://gemini.google.com" target="_blank" rel="noopener">Google Gemini</a><br>
+    Undervaluation model is experimental and for informational purposes only. This is not financial advice.
+  </footer>
 </main>
 
 <script>
 async function loadData() {
-  const status = document.getElementById("status");
-  try {
-    status.textContent = "Loading data…";
-    // Using a cache-buster to ensure the latest data.json is fetched
-    const res = await fetch("data.json?cb=" + Date.now()); 
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const json = await res.json();
-    status.textContent = "Last updated: " + json.updated + " — Currency: " + json.currency;
-    renderTables(json.top_undervalued, json.top_overvalued);
-  } catch (e) {
-    console.error(e);
-    status.textContent = "Error loading data: " + e.message + ". Make sure 'data.json' is in the same directory.";
-  }
+  const status = document.getElementById("status");
+  try {
+    status.textContent = "Loading data…";
+    const res = await fetch("data.json?cb=" + Date.now());
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    status.textContent = "Last updated: " + json.updated + " — Next update in 8 hours";
+    renderTables(json.top_undervalued, json.top_overvalued);
+  } catch (e) {
+    console.error(e);
+    status.textContent = "Error loading data: " + e.message + ". Make sure 'data.json' is in the same directory.";
+  }
 }
 
 function formatNum(n) {
-  const v = Number(n);
-  if (!isFinite(v)) return "-";
-  // Added a check for very small numbers to format Price more appropriately
-  if (Math.abs(v) < 0.0001 && Math.abs(v) > 0) return v.toExponential(2); 
-  if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + "B";
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
-  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(2) + "K";
-  return v.toFixed(2);
+  const v = Number(n);
+  if (!isFinite(v)) return "-";
+  if (Math.abs(v) < 0.0001 && Math.abs(v) > 0) return v.toExponential(2);
+  if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + "B";
+  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
+  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(2) + "K";
+  return v.toFixed(2);
 }
-
-function getScoreColor(score) {
-    if (score >= 4.0) return 'var(--accent-green)';
-    if (score <= 2.0) return 'var(--accent-red)';
-    return 'var(--accent-yellow)';
-}
-
 
 function renderTable(rows) {
-  if (!rows || !rows.length) return "<p>No data.</p>";
+  if (!rows || !rows.length) return "<p>No data.</p>";
 
-  let html = "<table><thead><tr>" +
-    "<th>#</th><th>Name</th><th>Symbol</th>" +
-    "<th>Price (USD)</th><th>Market Cap</th>" +
-    "<th>24h Volume</th>" +
-    // *** NEW HEADERS FOR SCORING ***
-    "<th>Gemini Score</th>" +
-    "<th>Composite Score</th>" +
-    // *******************************
-    "<th>24h %</th>" +
-    "</tr></thead><tbody>";
+  let html = "<table><thead><tr>" +
+    "<th>#</th><th>Name</th><th>Symbol</th>" +
+    "<th>Price (USD)</th><th>Market Cap</th>" +
+    "<th>24h Volume</th>" +
+    "<th>24h %</th>" +
+    "</tr></thead><tbody>";
 
-  for (const r of rows) {
-    // Price formatting
-    const price = Number(r.current_price);
-    let priceDecimals = 4;
-    if (price >= 1) {
-        priceDecimals = 2;
-    } else if (price < 0.0001 && price > 0) {
-        priceDecimals = 8; 
-    }
-    
-    // Momentum color
-    const momentum = Number(r.momentum_24h);
-    let momentumColor = 'inherit';
-    if (momentum > 0) {
-        momentumColor = 'var(--accent-green)';
-    } else if (momentum < 0) {
-        momentumColor = 'var(--accent-red)';
-    }
+  for (const r of rows) {
+    const price = Number(r.current_price);
+    let priceDecimals = 4;
+    if (price >= 1) {
+      priceDecimals = 2;
+    } else if (price < 0.0001 && price > 0) {
+      priceDecimals = 8;
+    }
 
-    // Gemini Score data and color
-    const fundScore = Number(r.fundamental_score);
-    const fundScoreColor = getScoreColor(fundScore);
-    const compositeScore = Number(r.undervalue_score);
+    const momentum = Number(r.momentum_24h);
+    let momentumColor = 'inherit';
+    if (momentum > 0) {
+      momentumColor = '#22c55e';
+    } else if (momentum < 0) {
+      momentumColor = '#ef4444';
+    }
 
+    html += "<tr>" +
+      `<td>${r.rank}</td>` +
+      `<td>${r.name}</td>` +
+      `<td>${r.symbol}</td>` +
+      `<td>$${price.toFixed(priceDecimals)}</td>` +
+      `<td>$${formatNum(r.market_cap)}</td>` +
+      `<td>$${formatNum(r.volume_24h)}</td>` +
+      `<td style="color:${momentumColor};">${momentum.toFixed(2)}%</td>` +
+      "</tr>";
+  }
 
-    html += "<tr>" +
-      `<td>${r.rank}</td>` +
-      `<td>${r.name}</td>` +
-      `<td>${r.symbol}</td>` +
-      `<td>$${price.toFixed(priceDecimals)}</td>` +
-      `<td>$${formatNum(r.market_cap)}</td>` +
-      `<td>$${formatNum(r.volume_24h)}</td>` +
-        // *** NEW COLUMNS WITH SCORING DATA ***
-      `<td class="fund-score-col" style="color: ${fundScoreColor};">${fundScore.toFixed(1)}</td>` +
-      `<td class="composite-score-col">${compositeScore.toFixed(4)}</td>` +
-        // *************************************
-      `<td style="color:${momentumColor};">${momentum.toFixed(2)}%</td>` +
-      "</tr>";
-  }
-
-  html += "</tbody></table>";
-  return html;
+  html += "</tbody></table>";
+  return html;
 }
 
 function renderTables(under, over) {
-  document.getElementById("under-table").innerHTML = renderTable(under);
-  document.getElementById("over-table").innerHTML = renderTable(over);
+  document.getElementById("under-table").innerHTML = renderTable(under);
+  document.getElementById("over-table").innerHTML = renderTable(over);
 }
 
 loadData();
