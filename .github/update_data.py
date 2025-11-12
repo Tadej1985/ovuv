@@ -21,18 +21,18 @@ except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
 
 # 2. CoinCap V3 API Key and Base URL:
-#    Set this environment variable: export COINCAP_API_KEY="YOUR_COINCAP_SECRET_KEY"
-COINCAP_API_BASE = "https://rest.coincap.io/v2" 
-COINCAPSECRET = os.environ.get("COINCAPSECRET")
+#    ***NOTE: The key is now read from the COINCAPSECRET environment variable.***
+COINCAP_API_BASE = "https://rest.coincap.io/V3" 
+COINCAP_KEY = os.environ.get("COINCAPSECRET") # <-- Changed to COINCAPSECRET
 
 # Set the Authorization header for CoinCap V3 requests
-if COINCAPSECRET:
+if COINCAP_KEY:
     HEADERS = {
-        'Authorization': f'Bearer {COINCAPSECRET}' 
+        'Authorization': f'Bearer {COINCAP_KEY}' 
     }
 else:
     HEADERS = {}
-    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.")
+    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.") # <-- Changed warning
 
 OUTPUT_FILE = "docs/data.json"
 TOP_N = 50  # Number of coins to process from CoinCap's top list
@@ -44,7 +44,7 @@ def fetch_coincap_assets(limit=TOP_N):
     print(f"Fetching top {limit} assets from CoinCap V3...")
     try:
         response = requests.get(
-            f"{COINCAP_API_BASE}/assets?limit={limit}",
+            f"{COINCAP_API_BASE}/assets?limit={limit}", 
             headers=HEADERS  # Pass the Authorization header here
         )
         response.raise_for_status()
