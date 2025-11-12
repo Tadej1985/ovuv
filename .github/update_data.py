@@ -12,63 +12,81 @@ from google.genai.errors import APIError
 
 # --- Configuration ---
 
-# Set your API Key as an environment variable (recommended):
-# export GEMINI_API_KEY="YOUR_API_KEY"
+# 1. Gemini API Key: Set this environment variable securely: 
+#    export GEMINI_API_KEY="YOUR_GEMINI_SECRET_KEY"
 GEMINI_CLIENT = None
 try:
     GEMINI_CLIENT = genai.Client()
 except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
 
-COINCAP_API_BASE = "https://rest.coincap.io/v3"
+# 2. CoinCap V3 API Key and Base URL:
+#    Set this environment variable: export COINCAP_API_KEY="YOUR_COINCAP_SECRET_KEY"
+COINCAP_API_BASE = "https://rest.coincap.io/v2" 
+COINCAPSECRET = os.environ.get("COINCAPSECRET")
+
+# Set the Authorization header for CoinCap V3 requests
+if COINCAPSECRET:
+    HEADERS = {
+        'Authorization': f'Bearer {COINCAPSECRET}' 
+    }
+else:
+    HEADERS = {}
+    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.")
+
 OUTPUT_FILE = "docs/data.json"
 TOP_N = 50  # Number of coins to process from CoinCap's top list
 
-# --- Helper Functions for Data Retrieval ---
+# --- Helper Functions for Data Retrieval (Using Headers) ---
 
 def fetch_coincap_assets(limit=TOP_N):
-    """Fetches the top N assets from CoinCap API."""
-    print(f"Fetching top {limit} assets from CoinCap...")
+    """Fetches the top N assets from CoinCap API using the Authorization header."""
+    print(f"Fetching top {limit} assets from CoinCap V3...")
     try:
-        response = requests.get(f"{COINCAP_API_BASE}/assets?limit={limit}")
+        response = requests.get(
+            f"{COINCAP_API_BASE}/assets?limit={limit}",
+            headers=HEADERS  # Pass the Authorization header here
+        )
         response.raise_for_status()
         data = response.json().get('data', [])
         return pd.DataFrame(data)
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching CoinCap assets: {e}")
+        print(f"Error fetching CoinCap V3 assets. Check your API key and rate limits: {e}")
         return pd.DataFrame()
 
-def fetch_historical_price(coin_id, days_ago):
+def fetch_historical_data(coin_id, days):
     """
-    Fetches the price for a coin at the start of the day N days ago.
-    This is expensive, so it's called once per coin/interval.
+    Fetches daily historical prices for a coin over a specified number of days.
+    Returns: (Historical Price from N days ago, list of daily returns)
     """
+    # Calculate timestamps for the last 'days' interval
     end_time_ms = int(datetime.now().timestamp() * 1000)
-    start_time_ms = int((datetime.now() - timedelta(days=days_ago)).timestamp() * 1000)
+    start_time_ms = int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
     
-    # Use daily interval (d1)
+    # Use daily interval (d1) for smooth data
     url = f"{COINCAP_API_BASE}/assets/{coin_id}/history?interval=d1&start={start_time_ms}&end={end_time_ms}"
     
     try:
-        response = requests.get(url)
+        response = requests.get(url, headers=HEADERS) # Pass the Authorization header here
         response.raise_for_status()
         history = response.json().get('data', [])
         
-        if not history:
-            return None, None # Price, Daily Returns
+        if len(history) < 2:
+            return None, [] # Not enough data
             
-        # Extract the price from the oldest data point (closest to N days ago)
+        # Historical price is the first one fetched (oldest)
         historical_price = float(history[0]['priceUsd'])
         
         # Calculate daily returns for volatility: (P_i / P_{i-1}) - 1
-        prices = [float(h['priceUsd']) for h in history]
+        prices = [float(h['priceUsd']) for h in history if h.get('priceUsd')]
         returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
         
         return historical_price, returns
         
     except requests.exceptions.RequestException as e:
+        # Note: CoinCap's /history endpoint may have stricter limits.
         print(f"Error fetching historical data for {coin_id}: {e}")
-        return None, None
+        return None, []
 
 
 # --- Gemini Batch Processing Function (Rate Limit Optimization) ---
@@ -79,8 +97,7 @@ def get_fundamental_scores_batch(candidates: list) -> dict:
     reducing the number of API calls and avoiding the 10 RPM limit.
     """
     if not GEMINI_CLIENT:
-        print("Skipping Gemini analysis due to client initialization error.")
-        return {c['id']: 3.0 for c in candidates} # Default to neutral score
+        return {c['id']: 3.0 for c in candidates}
     
     print(f"\n--- Starting Gemini Fundamental Batch Analysis for {len(candidates)} coins (1 Request) ---")
 
@@ -107,33 +124,27 @@ def get_fundamental_scores_batch(candidates: list) -> dict:
             model='gemini-2.5-flash',
             contents=[prompt],
             config=types.GenerateContentConfig(
-                # Enforce JSON output for reliable parsing
                 response_mime_type="application/json",
-                # Use Google Search for the latest news
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
         
-        # Parse the guaranteed JSON output
         results = json.loads(response.text.strip())
         
         final_scores = {}
         for candidate in candidates:
             coin_id = candidate['id']
-            # Get score, default to 3.0 if model misses it
             score = results.get(coin_id, 3.0) 
             try:
-                # Ensure score is float and bounded
                 final_scores[coin_id] = max(1.0, min(5.0, float(score)))
             except (ValueError, TypeError):
-                final_scores[coin_id] = 3.0 # Handle non-numeric model output
+                final_scores[coin_id] = 3.0 
                 
         print("--- Gemini Batch Analysis Complete ---")
         return final_scores
 
     except (APIError, json.JSONDecodeError, Exception) as e:
         print(f"   [FATAL GEMINI BATCH ERROR] Failed to score batch. Error: {e!r}. Using neutral scores (3.0).")
-        # Return neutral scores for all candidates on failure
         return {c['id']: 3.0 for c in candidates}
 
 # --- Main Scoring Logic ---
@@ -155,10 +166,10 @@ def compute_all_scores():
     df['vol_mcap_ratio'] = 0.0
     df['change_7d'] = 0.0
     df['volatility_30d'] = 0.0
-    df['fundamental_score'] = 3.0 # Neutral starting score
+    df['fundamental_score'] = 3.0 
     df['undervalue_score'] = 0.0
 
-    # 1. Calculate Core Financial Metrics
+    # 1. Calculate Core Financial Metrics & Historical Data
     print("Calculating financial and historical metrics...")
     
     # Volume/Market Cap Ratio (Value Component)
@@ -166,28 +177,20 @@ def compute_all_scores():
     
     # Calculate 7d/30d change and 30d Volatility
     for index, row in df.iterrows():
-        # Using a fixed price for simplicity in this example; in a production script,
-        # you would need to store/cache this historical data daily.
-        # Here we only fetch the 30d data to compute both 30d change and volatility.
         
-        # NOTE: Fetching historical data is an additional cost/time.
-        # For simplicity, let's assume this data is pre-fetched or derived.
-        
-        # --- PLACEHOLDER FOR HISTORICAL DATA FETCH ---
-        # In a real-world script, you'd integrate the fetch_historical_price function here.
-        # For a clean example, we will assign random data that demonstrates the logic:
-        
-        # Replace these lines with your actual fetch_historical_price calls:
-        price_30d_ago = row['priceUsd'] * (1 + np.random.uniform(-0.15, 0.15))
-        price_7d_ago = row['priceUsd'] * (1 + np.random.uniform(-0.05, 0.05))
-        daily_returns_30d = np.random.normal(0, 0.05, 30) # Random returns for volatility calc
-        # ---------------------------------------------
+        # --- Fetch Historical Data ---
+        price_7d_ago, _ = fetch_historical_data(row['id'], 7)
+        price_30d_ago, returns_30d = fetch_historical_data(row['id'], 30)
 
         # 7-Day Change
-        df.loc[index, 'change_7d'] = ((row['priceUsd'] - price_7d_ago) / price_7d_ago) * 100
+        if row['priceUsd'] is not None and price_7d_ago is not None and price_7d_ago != 0:
+            df.loc[index, 'change_7d'] = ((row['priceUsd'] - price_7d_ago) / price_7d_ago) * 100
         
-        # 30-Day Volatility
-        df.loc[index, 'volatility_30d'] = np.std(daily_returns_30d) * 100 if len(daily_returns_30d) > 1 else 0.0
+        # 30-Day Volatility (Standard Deviation of Daily Returns)
+        if len(returns_30d) > 1:
+            df.loc[index, 'volatility_30d'] = np.std(returns_30d) * 100
+        else:
+            df.loc[index, 'volatility_30d'] = 0.0 # Default to 0 if not enough data
 
 
     # 2. Identify Gemini Candidates (Top 25 Undervalued + Top 25 Overvalued)
@@ -196,17 +199,14 @@ def compute_all_scores():
     df['z_vol_mcap'] = (df['vol_mcap_ratio'] - df['vol_mcap_ratio'].mean()) / df['vol_mcap_ratio'].std()
     
     # Standardize Volatility-Adjusted Momentum (New Component)
-    # Volatility-Adjusted Momentum: Negative change is good for Undervalue, high volatility is bad.
-    df['vol_adj_momentum'] = df['change_7d'] / (df['volatility_30d'] + 0.01) # Add epsilon to avoid division by zero
+    # Volatility-Adjusted Momentum: Lower price change relative to volatility is better for undervalue
+    df['vol_adj_momentum'] = df['change_7d'] / (df['volatility_30d'] + 0.01) 
     df['z_vol_adj_momentum'] = (df['vol_adj_momentum'] - df['vol_adj_momentum'].mean()) / df['vol_adj_momentum'].std()
 
     # Create a composite score to select candidates for Gemini analysis
     df['candidate_score'] = df['z_vol_mcap'] - df['z_vol_adj_momentum'] 
     
-    # Select the top 50 candidates for Gemini analysis
-    # High 'candidate_score' = High Vol/Cap & Low/Negative Vol-Adj Momentum (Potential Undervalue)
     candidates_undervalue = df.sort_values(by='candidate_score', ascending=False).head(25)
-    # Low 'candidate_score' = Low Vol/Cap & High/Positive Vol-Adj Momentum (Potential Overvalue)
     candidates_overvalue = df.sort_values(by='candidate_score', ascending=True).head(25)
     
     analysis_candidates = pd.concat([candidates_undervalue, candidates_overvalue]).drop_duplicates(subset=['id'])
@@ -217,7 +217,6 @@ def compute_all_scores():
     fundamental_scores_map = get_fundamental_scores_batch(analysis_candidates_list)
     
     # Update DataFrame using the map (efficiently)
-    # The .map() function is highly efficient for updating a column based on a dictionary
     df['fundamental_score'] = df['id'].map(fundamental_scores_map).fillna(df['fundamental_score'])
 
 
@@ -227,19 +226,14 @@ def compute_all_scores():
     df['z_fundamental'] = (df['fundamental_score'] - df['fundamental_score'].mean()) / df['fundamental_score'].std()
 
     # Undervalue Score (The Ranking Metric)
-    # Undervalue is high when:
-    # 1. Volume/Market Cap is high (High trading interest relative to size)
-    # 2. Volatility-Adjusted Momentum is low (Price has dropped/stabilized relative to volatility)
-    # 3. Fundamental Score is high (Strong recent news)
-    
-    # Weights can be adjusted (e.g., more weight on Fundamentals)
+    # Weights can be adjusted 
     W_VOL_MCAP = 0.35
     W_VOL_MOM = 0.35
     W_FUNDAMENTAL = 0.30
 
     df['undervalue_score'] = (
         W_VOL_MCAP * df['z_vol_mcap'] 
-        - W_VOL_MOM * df['z_vol_adj_momentum'] # Subtract to reward negative/low momentum
+        - W_VOL_MOM * df['z_vol_adj_momentum'] # Subtract momentum for the undervalue calculation
         + W_FUNDAMENTAL * df['z_fundamental']
     )
 
@@ -263,7 +257,6 @@ def compute_all_scores():
     for col in ['price', 'market_cap', 'volume_24h', 'price_change_24h', 
                 'vol_mcap_ratio', 'price_change_7d', 'volatility_30d', 
                 'fundamental_score', 'undervalue_score']:
-        # Handle large numbers (market cap, volume) separately for better JSON display
         if col in ['market_cap', 'volume_24h']:
              final_data[col] = final_data[col].apply(lambda x: int(round(x)))
         else:
@@ -276,7 +269,6 @@ def compute_all_scores():
         "data": final_data.to_dict('records')
     }
     
-    # Ensure the 'docs' directory exists for static hosting
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     
     with open(OUTPUT_FILE, 'w') as f:
