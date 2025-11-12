@@ -20,7 +20,7 @@ try:
 except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
 
-COINCAP_API_BASE = "https://api.coincap.io/v2"
+COINCAP_API_BASE = "https://rest.coincap.io/v3"
 OUTPUT_FILE = "docs/data.json"
 TOP_N = 50  # Number of coins to process from CoinCap's top list
 
