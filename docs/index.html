@@ -12,11 +12,7 @@
 
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <style>
+    <style>
     :root {
       --bg: #020617;
       --bg-card: #0f1220;
@@ -33,8 +29,10 @@
     html, body {
       margin: 0;
       padding: 0;
-      font-family: 'Inter', system-ui, sans-serif;
-      background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%);
+      /* Using a generic font stack to avoid external loading failure */
+      font-family: system-ui, sans-serif; 
+      /* FIX: Added !important to ensure dark background is applied instantly */
+      background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%) !important;
       color: var(--text);
     }
 
@@ -240,9 +238,8 @@
         text-align: left;
     }
     
-    /* Ensure the wrapper respects the minimum height */
     .banner-side {
-        justify-content: space-between; /* space out the elements within the banner side */
+        justify-content: space-between; 
     }
 
     @media (max-width: 1400px) {
@@ -451,12 +448,11 @@ function renderTable(rows) {
         const safeSummary = (r.summary || 'No summary available.').replace(/"/g, '&quot;');
 
         html += `<tr data-id="${r.id}" data-summary="${safeSummary}">` + 
-            `<td style="text-align: left;">${r.rank}</td>` + /* Aligned left for Rank and Name */
+            `<td style="text-align: left;">${r.rank}</td>` + 
             `<td style="text-align: left;">${r.name}</td>` +
             `<td style="text-align: right;"><strong>${fundamental_score.toFixed(1)}</strong></td>` +
             `<td style="text-align: right;">$${formatNum(price, 'price')}</td>` +
             `<td style="text-align: right;">$${formatNum(r.market_cap, 'cap')}</td>` +
-            // --- FIX: Ensure Volume uses the correct value and is formatted as currency ---
             `<td style="text-align: right;">$${formatNum(volume_24h, 'cap')}</td>` + 
             `<td style="color:${momentumColor}; text-align: right;">${price_change_24h.toFixed(2)}%</td>` +
             "</tr>";
@@ -483,7 +479,6 @@ function displaySummary(rowElement) {
     const detailCard = document.getElementById('detail-card');
     const defaultBanner = document.getElementById('default-right-banner');
 
-    // Toggle logic: Get the current title to check if the card is already active
     const currentTitle = detailCard.querySelector('h3') ? detailCard.querySelector('h3').textContent : '';
 
     if (currentTitle.includes(coinName)) {
@@ -501,7 +496,6 @@ function displaySummary(rowElement) {
     `;
     defaultBanner.style.display = 'none';
 
-    // Scroll the sidebar to the top to ensure the new summary is visible
     const bannerSide = rowElement.closest('main').querySelector('.banner-side');
     if (bannerSide) {
         bannerSide.scrollTop = 0;
