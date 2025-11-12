@@ -122,9 +122,9 @@
       color: #fbbf24;
       min-height: 600px;
       display: flex;
-      flex-direction: column; /* Added to stack banner and detail card */
+      flex-direction: column; 
       align-items: center;
-      justify-content: flex-start; /* Aligned to the top */
+      justify-content: flex-start;
       box-shadow: 0 8px 24px rgba(250,204,21,0.05);
     }
 
@@ -186,16 +186,16 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 0.85rem;
-      table-layout: fixed; /* Ensures column widths are stable */
+      table-layout: fixed; 
     }
 
     th, td {
       padding: 0.65rem 0.5rem;
       border-bottom: 1px solid rgba(31,41,55,0.5);
-      text-align: right; /* Default data alignment */
+      text-align: right; 
     }
 
-    /* Custom alignment for Name and Symbol */
+    /* Custom alignment for Rank and Name */
     th:first-child, td:first-child, /* Rank */
     th:nth-child(2), td:nth-child(2) { /* Name */
       text-align: left;
@@ -203,10 +203,11 @@
     
     /* Set column widths for better visual balance */
     th:first-child { width: 5%; } 
-    th:nth-child(2) { width: 30%; } /* Name column wide */
+    th:nth-child(2) { width: 25%; } /* Name column wide */
     th:nth-child(3) { width: 10%; } /* Score */
     th:nth-child(4) { width: 15%; } /* Price */
     th:nth-child(5) { width: 20%; } /* Market Cap */
+    th:nth-child(6) { width: 15%; } /* Volume (24h) */
     th:last-child { width: 10%; } /* 24h % */
 
 
@@ -224,42 +225,25 @@
 
     tr:nth-child(odd) { background: rgba(15,23,42,0.5); }
     tr:nth-child(even) { background: rgba(15,23,42,0.35); }
-    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; cursor: pointer; } /* Added cursor pointer */
+    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; cursor: pointer; } 
 
-    #detail-card {
+    #default-right-banner {
+        width: 100%;
+        text-align: center;
+        padding: 40px 0;
+    }
+    
+    #detail-card {
         margin-top: 20px;
         padding: 0;
-        width: 100%; /* Take full width of parent */
+        width: 100%;
         text-align: left;
     }
     
-    .banner-side > div:first-child:not(#detail-card) {
-        /* Default banner style to center text */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100px; /* Give it some space */
+    /* Ensure the wrapper respects the minimum height */
+    .banner-side {
+        justify-content: space-between; /* space out the elements within the banner side */
     }
-
-
-    footer {
-      margin-top: 3rem;
-      font-size: 0.8rem;
-      color: var(--muted);
-      text-align: center;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-    }
-
-    footer a {
-      color: #60a5fa;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    footer a:hover {
-      color: #93c5fd;
-    }
 
     @media (max-width: 1400px) {
       .grid {
@@ -279,7 +263,7 @@
       }
       .banner-side {
         min-height: auto;
-        padding: 2rem;
+        padding: 1.2rem;
       }
       header {
         padding: 1rem 1rem 0.6rem;
@@ -287,9 +271,6 @@
       h1 {
         font-size: 1.6rem;
       }
-      .banner-side > div:first-child:not(#detail-card) {
-          min-height: 50px;
-      }
     }
 
     @media (max-width: 768px) {
@@ -370,8 +351,10 @@
 
     <aside class="sidebar">
       <div class="banner-side">
-        <div>Right Banner<br />(160×600)</div>
-        <div id="detail-card"></div> 
+                        <div id="default-right-banner">
+                Right Banner<br />(160×600)
+            </div>
+                        <div id="detail-card"></div> 
       </div>
     </aside>
   </div>
@@ -387,7 +370,6 @@
 function formatLastUpdated(isoString) {
     if (!isoString) return 'unknown time';
     const date = new Date(isoString);
-    // Format to "HH:MM AM/PM"
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
@@ -414,7 +396,6 @@ async function loadData() {
   const status = document.getElementById("status");
   try {
     status.textContent = "Loading data…";
-    // Add cache-buster to ensure fresh data.json on every load
     const res = await fetch("data.json?cb=" + Date.now()); 
     if (!res.ok) throw new Error("HTTP " + res.status);
     
@@ -423,15 +404,12 @@ async function loadData() {
     // --- Data Extraction Logic (Fixed) ---
     const allCoins = json.data || []; 
     
-    // Separate coins into Undervalued and Overvalued lists
     const undervaluedCoins = allCoins.filter(coin => coin.category === 'Undervalued');
     const overvaluedCoins = allCoins.filter(coin => coin.category === 'Overvalued');
     
-    // Update status text using the 'generated_at' key
     const lastUpdateTime = formatLastUpdated(json.generated_at);
     status.textContent = `Last updated: ${lastUpdateTime} — Next update in 8 hours`;
     
-    // Render the tables with the correct separated data
     renderTables(undervaluedCoins, overvaluedCoins);
     
   } catch (e) {
@@ -443,7 +421,6 @@ async function loadData() {
 function renderTable(rows) {
     if (!rows || !rows.length) return "<p style='text-align:center;padding:1rem;color:var(--muted);'>No data to display in this category.</p>";
 
-    // Use the exact headers and column count as your design implies
     let html = `<table>
     <thead>
         <tr>
@@ -460,7 +437,6 @@ function renderTable(rows) {
 
     for (const r of rows) {
         const price = Number(r.price);
-        // Assuming your JSON has these fields based on previous context:
         const volume_24h = Number(r.volume_24h || 0);
         const price_change_24h = Number(r.price_change_24h || 0);
         const fundamental_score = Number(r.fundamental_score || 0);
@@ -472,16 +448,16 @@ function renderTable(rows) {
             momentumColor = 'var(--accent-red)';
         }
         
-        // Escape quotes in summary for safe HTML attribute reading
         const safeSummary = (r.summary || 'No summary available.').replace(/"/g, '&quot;');
 
         html += `<tr data-id="${r.id}" data-summary="${safeSummary}">` + 
-            `<td style="text-align: right;">${r.rank}</td>` +
+            `<td style="text-align: left;">${r.rank}</td>` + /* Aligned left for Rank and Name */
             `<td style="text-align: left;">${r.name}</td>` +
             `<td style="text-align: right;"><strong>${fundamental_score.toFixed(1)}</strong></td>` +
             `<td style="text-align: right;">$${formatNum(price, 'price')}</td>` +
             `<td style="text-align: right;">$${formatNum(r.market_cap, 'cap')}</td>` +
-            `<td style="text-align: right;">$${formatNum(volume_24h, 'cap')}</td>` +
+            // --- FIX: Ensure Volume uses the correct value and is formatted as currency ---
+            `<td style="text-align: right;">$${formatNum(volume_24h, 'cap')}</td>` + 
             `<td style="color:${momentumColor}; text-align: right;">${price_change_24h.toFixed(2)}%</td>` +
             "</tr>";
     }
@@ -494,7 +470,6 @@ function renderTables(under, over) {
   document.getElementById("under-table").innerHTML = renderTable(under);
   document.getElementById("over-table").innerHTML = renderTable(over);
     
-    // Setup click handlers for the summary feature
     document.querySelectorAll('tbody tr').forEach(row => {
         row.addEventListener('click', function() {
             displaySummary(this);
@@ -503,36 +478,34 @@ function renderTables(under, over) {
 }
 
 function displaySummary(rowElement) {
-    // Read and un-escape quotes from data attribute
     const summary = rowElement.dataset.summary.replace(/&quot;/g, '"');
     const coinName = rowElement.querySelector('td:nth-child(2)').textContent;
     const detailCard = document.getElementById('detail-card');
-    const bannerSide = rowElement.closest('main').querySelector('.banner-side');
+    const defaultBanner = document.getElementById('default-right-banner');
 
-    // Toggle logic: If clicking the same coin, clear the summary.
-    const currentName = detailCard ? detailCard.querySelector('h3') : null;
-    if (currentName && currentName.textContent.includes(coinName)) {
-        // Toggle OFF: Reset content to the default banner message
+    // Toggle logic: Get the current title to check if the card is already active
+    const currentTitle = detailCard.querySelector('h3') ? detailCard.querySelector('h3').textContent : '';
+
+    if (currentTitle.includes(coinName)) {
+        // Toggle OFF: Clear the summary and show the default banner
         detailCard.innerHTML = '';
-        bannerSide.innerHTML = '<div>Right Banner<br />(160×600)</div><div id="detail-card"></div>';
+        defaultBanner.style.display = 'block';
         return;
     }
 
-    // Toggle ON: Inject the summary into the detail card container
+    // Toggle ON: Display the summary and hide the default banner
     detailCard.innerHTML = `
-        <h3 style="margin-top:0; color:white; font-size: 1.0rem; margin-bottom: 0.5rem;">${coinName} Analysis</h3>
+        <h3 style="margin-top:0; color:white; font-size: 1.0rem; margin-bottom: 0.5rem; text-align: center;">${coinName} Analysis</h3>
         <p style="color:var(--muted);font-size:0.8rem;line-height:1.4;">${summary}</p>
         <p style="text-align:right;font-size:0.75rem;color:#4b5563;margin-bottom:0;">Click row again to dismiss.</p>
     `;
-    
-    // Hide the standard banner content once the summary is displayed
-    const defaultBanner = bannerSide.querySelector('div:not(#detail-card)');
-    if (defaultBanner) {
-        defaultBanner.style.display = 'none';
-    }
+    defaultBanner.style.display = 'none';
 
-    // Scroll to the top of the content area if necessary (optional UX improvement)
-    // window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll the sidebar to the top to ensure the new summary is visible
+    const bannerSide = rowElement.closest('main').querySelector('.banner-side');
+    if (bannerSide) {
+        bannerSide.scrollTop = 0;
+    }
 }
 
 // Initial call to load data
