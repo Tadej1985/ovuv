@@ -1,369 +1,393 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>OVUV — Crypto Undervalued & Overvalued Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>OVUV — Crypto Undervalued & Overvalued Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated automatically every 8 hours using live market data from CoinCap, enhanced with Gemini's fundamental analysis.">
-  <meta property="og:title" content="OVUV — Crypto Undervaluation Tracker">
-  <meta property="og:description" content="Top 25 undervalued & overvalued cryptos. Updated every 8 hours using CoinCap data and Gemini fundamental analysis.">
-  <meta property="og:type" content="website">
+  <meta name="description" content="OVUV — Discover the most undervalued and overvalued cryptocurrencies. Top 25 under and top 25 over, updated automatically every 8 hours using live market data from CoinCap, enhanced with Gemini's fundamental analysis.">
+  <meta property="og:title" content="OVUV — Crypto Undervaluation Tracker">
+  <meta property="og:description" content="Top 25 undervalued & overvalued cryptos. Updated every 8 hours using CoinCap data and Gemini fundamental analysis.">
+  <meta property="og:type" content="website">
 
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
 
-  <style>
-    :root {
-      --bg: #020617;
-      --bg-card: #0f1220;
-      --border: #1f2937;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent-green: #22c55e;
-      --accent-red: #ef4444;
-      --accent-yellow: #f59e0b;
-      --shadow: 0 20px 40px rgba(0,0,0,0.8);
-    }
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-card: #0f1220;
+      --border: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --shadow: 0 20px 40px rgba(0,0,0,0.8);
+    }
 
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      /* Using a generic font stack for reliability */
-      font-family: system-ui, sans-serif; 
-      /* This is the background that should now apply the dark gradient */
-      background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%) !important;
-      color: var(--text);
-    }
+    * { box-sizing: border-box; }
 
-    header {
-      padding: 1.5rem 1.5rem 1rem;
-      background: rgba(2,6,23,0.95);
-      border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(12px);
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    }
+    html {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%);
+      background-attachment: fixed;
+    }
 
-    h1 {
-      margin: 0;
-      font-size: 2rem;
-      display: flex;
-      align-items: baseline;
-      gap: 0.6rem;
-      font-weight: 800;
-    }
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: var(--text);
+    }
 
-    .brand { font-weight: 800; letter-spacing: -0.02em; }
-    .brand .o { color: var(--accent-red); }
-    .brand .u { color: var(--accent-green); }
+    header {
+      padding: 1.5rem 1.5rem 1rem;
+      background: rgba(2,6,23,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
 
-    .tagline {
-      font-size: 0.95rem;
-      color: var(--muted);
-      margin-top: 0.6rem;
-      line-height: 1.5;
-      max-width: 900px;
-    }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      font-weight: 800;
+    }
 
-    main {
-      max-width: 1920px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
-    }
+    .brand { font-weight: 800; letter-spacing: -0.02em; }
+    .brand .o { color: var(--accent-red); }
+    .brand .u { color: var(--accent-green); }
 
-    #status {
-      font-size: 0.9rem;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      text-align: center;
-      min-height: 1.5rem;
-    }
+    .tagline {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-top: 0.6rem;
+      line-height: 1.5;
+      max-width: 900px;
+    }
 
-    .banner-top {
-      margin: 0 auto 2rem;
-      padding: 1rem;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(15,24,39,0.9) 0%, rgba(17,24,39,0.8) 100%);
-      border: 1px solid rgba(250,204,21,0.2);
-      text-align: center;
-      font-size: 0.9rem;
-      color: #fbbf24;
-      max-width: 900px;
-      box-shadow: 0 8px 24px rgba(250,204,21,0.05);
-    }
+    main {
+      max-width: 1920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      min-height: calc(100vh - 150px);
+    }
 
-    .container {
-      display: flex;
-      gap: 2rem;
-      align-items: flex-start;
-      max-width: 1920px;
-      margin: 0 auto;
-    }
+    #status {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      text-align: center;
+      min-height: 1.5rem;
+    }
 
-    .sidebar {
-      width: 180px;
-      flex-shrink: 0;
-    }
+    .banner-top {
+      margin: 0 auto 2rem;
+      padding: 1rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(15,24,39,0.9) 0%, rgba(17,24,39,0.8) 100%);
+      border: 1px solid rgba(250,204,21,0.2);
+      text-align: center;
+      font-size: 0.9rem;
+      color: #fbbf24;
+      max-width: 900px;
+      box-shadow: 0 8px 24px rgba(250,204,21,0.05);
+    }
 
-    .banner-side {
-      position: sticky;
-      top: 8rem;
-      padding: 1.2rem;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(15,24,39,0.9) 0%, rgba(17,24,39,0.8) 100%);
-      border: 1px solid rgba(250,204,21,0.2);
-      text-align: center;
-      font-size: 0.85rem;
-      color: #fbbf24;
-      min-height: 600px;
-      display: flex;
-      flex-direction: column; 
-      align-items: center;
-      justify-content: flex-start;
-      box-shadow: 0 8px 24px rgba(250,204,21,0.05);
-    }
+    .container {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
 
-    .content {
-      flex: 1;
-      min-width: 0;
-    }
+    .sidebar {
+      width: 180px;
+      flex-shrink: 0;
+    }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-bottom: 2rem;
-    }
+    .banner-side {
+      position: sticky;
+      top: 8rem;
+      padding: 1.2rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(15,24,39,0.9) 0%, rgba(17,24,39,0.8) 100%);
+      border: 1px solid rgba(250,204,21,0.2);
+      text-align: center;
+      font-size: 0.85rem;
+      color: #fbbf24;
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      box-shadow: 0 8px 24px rgba(250,204,21,0.05);
+    }
 
-    .card {
-      background: rgba(15,18,32,0.95);
-      border-radius: 16px;
-      padding: 1.5rem;
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
-    }
+    .content {
+      flex: 1;
+      min-width: 0;
+    }
 
-    h2 {
-      margin: 0 0 1rem;
-      font-size: 1.15rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
 
-    .badge {
-      font-size: 0.75rem;
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-      border: 1px solid var(--accent-green);
-      color: #bbf7d0;
-      background: rgba(34,197,94,0.12);
-      font-weight: 600;
-    }
+    .card {
+      background: rgba(15,18,32,0.95);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
 
-    .badge.red {
-      border-color: var(--accent-red);
-      color: #fecaca;
-      background: rgba(239,68,68,0.12);
-    }
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
 
-    .table-wrapper {
-      overflow-y: auto;
-      overflow-x: auto;
-      max-height: 600px;
-      border-radius: 10px;
-    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--accent-green);
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.12);
+      font-weight: 600;
+    }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-      table-layout: fixed; 
-    }
+    .badge.red {
+      border-color: var(--accent-red);
+      color: #fecaca;
+      background: rgba(239,68,68,0.12);
+    }
 
-    th, td {
-      padding: 0.65rem 0.5rem;
-      border-bottom: 1px solid rgba(31,41,55,0.5);
-      text-align: right; 
-    }
+    .table-wrapper {
+      overflow-y: auto;
+      overflow-x: auto;
+      max-height: 600px;
+      border-radius: 10px;
+    }
 
-    /* Custom alignment for Rank and Name */
-    th:first-child, td:first-child, /* Rank */
-    th:nth-child(2), td:nth-child(2) { /* Name */
-      text-align: left;
-    }
-    
-    /* Set column widths for better visual balance */
-    th:first-child { width: 5%; } 
-    th:nth-child(2) { width: 25%; } /* Name column wide */
-    th:nth-child(3) { width: 10%; } /* Score */
-    th:nth-child(4) { width: 15%; } /* Price */
-    th:nth-child(5) { width: 20%; } /* Market Cap */
-    th:nth-child(6) { width: 15%; } /* Volume (24h) */
-    th:last-child { width: 10%; } /* 24h % */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      table-layout: fixed;
+    }
 
+    th, td {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid rgba(31,41,55,0.5);
+      text-align: right;
+    }
 
-    th {
-      position: sticky;
-      top: 0;
-      background: rgba(2,6,23,0.98);
-      font-weight: 600;
-      z-index: 1;
-      color: var(--muted);
-      font-size: 0.8rem;
-      letter-spacing: 0.3px;
-      text-transform: uppercase;
-    }
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
 
-    tr:nth-child(odd) { background: rgba(15,23,42,0.5); }
-    tr:nth-child(even) { background: rgba(15,23,42,0.35); }
-    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; cursor: pointer; } 
+    th:first-child { width: 5%; }
+    th:nth-child(2) { width: 25%; }
+    th:nth-child(3) { width: 10%; }
+    th:nth-child(4) { width: 15%; }
+    th:nth-child(5) { width: 20%; }
+    th:nth-child(6) { width: 15%; }
+    th:last-child { width: 10%; }
 
-    #default-right-banner {
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(2,6,23,0.98);
+      font-weight: 600;
+      z-index: 1;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    tr:nth-child(odd) { background: rgba(15,23,42,0.5); }
+    tr:nth-child(even) { background: rgba(15,23,42,0.35); }
+    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; cursor: pointer; }
+
+    #default-right-banner {
         width: 100%;
         text-align: center;
         padding: 40px 0;
     }
-    
+
     #detail-card {
         margin-top: 20px;
         padding: 0;
         width: 100%;
         text-align: left;
     }
-    
+
     .banner-side {
-        justify-content: space-between; 
+        justify-content: space-between;
     }
 
-    @media (max-width: 1400px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-      .sidebar {
-        width: 160px;
-      }
-    }
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
 
-    @media (max-width: 1024px) {
-      .container {
-        flex-direction: column;
-      }
-      .sidebar {
-        width: 100%;
-      }
-      .banner-side {
-        min-height: auto;
-        padding: 1.2rem;
-      }
-      header {
-        padding: 1rem 1rem 0.6rem;
-      }
-      h1 {
-        font-size: 1.6rem;
-      }
-    }
+    footer a {
+      color: var(--accent-green);
+      text-decoration: none;
+    }
 
-    @media (max-width: 768px) {
-      main {
-        padding: 1rem;
-      }
-      .grid {
-        gap: 1.5rem;
-      }
-      .card {
-        padding: 1rem;
-      }
-      h2 {
-        font-size: 1rem;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      table {
-        font-size: 0.75rem;
-      }
-      th, td {
-        padding: 0.4rem 0.3rem;
-      }
-      .table-wrapper {
-        max-height: 400px;
-      }
-    }
-  </style>
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 1400px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        width: 160px;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+      }
+      .banner-side {
+        min-height: auto;
+        padding: 1.2rem;
+      }
+      header {
+        padding: 1rem 1rem 0.6rem;
+      }
+      h1 {
+        font-size: 1.6rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      main {
+        padding: 1rem;
+      }
+      .grid {
+        gap: 1.5rem;
+      }
+      .card {
+        padding: 1rem;
+      }
+      h2 {
+        font-size: 1rem;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      table {
+        font-size: 0.75rem;
+      }
+      th, td {
+        padding: 0.4rem 0.3rem;
+      }
+      .table-wrapper {
+        max-height: 400px;
+      }
+    }
+  </style>
 </head>
 <body>
 <header>
-  <h1>
-    <span class="brand"><span class="o">O</span>V<span class="u">U</span>V</span>
-    <span style="font-size:0.85rem;font-weight:500;color:#9ca3af;">crypto undervaluation tracker</span>
-  </h1>
-  <div class="tagline">
-    Top 25 most undervalued & top 25 most overvalued cryptocurrencies. Updated every 8 hours using live market data from <strong>CoinCap API</strong> and <strong>Gemini's fundamental analysis</strong>. Not financial advice.
-  </div>
+  <h1>
+    <span class="brand"><span class="o">O</span>V<span class="u">U</span>V</span>
+    <span style="font-size:0.85rem;font-weight:500;color:#9ca3af;">crypto undervaluation tracker</span>
+  </h1>
+  <div class="tagline">
+    Top 25 most undervalued & top 25 most overvalued cryptocurrencies. Updated every 8 hours using live market data from <strong>CoinCap API</strong> and <strong>Gemini's fundamental analysis</strong>. Not financial advice.
+  </div>
 </header>
 
 <main>
-  <div id="status">Loading data…</div>
+  <div id="status">Loading data…</div>
 
-  <div class="banner-top">
-    📢 Banner ad spot (728×90 / responsive)
-  </div>
+  <div class="banner-top">
+    📢 Banner ad spot (728×90 / responsive)
+  </div>
 
-  <div class="container">
-    <aside class="sidebar">
-      <div class="banner-side">
-        <div>Left Banner<br />(160×600)</div>
-      </div>
-    </aside>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="banner-side">
+        <div>Left Banner<br />(160×600)</div>
+      </div>
+    </aside>
 
-    <div class="content">
-      <div class="grid">
-        <div class="card">
-          <h2>
-            <span>⚠️ Top 25 Overvalued</span>
-            <span class="badge red">Lowest Score</span>
-          </h2>
-          <div class="table-wrapper">
-            <div id="over-table">Loading…</div>
-          </div>
-        </div>
+    <div class="content">
+      <div class="grid">
+        <div class="card">
+          <h2>
+            <span>⚠️ Top 25 Overvalued</span>
+            <span class="badge red">Lowest Score</span>
+          </h2>
+          <div class="table-wrapper">
+            <div id="over-table">Loading…</div>
+          </div>
+        </div>
 
-        <div class="card">
-          <h2>
-            <span>🏆 Top 25 Undervalued</span>
-            <span class="badge">Highest Score</span>
-          </h2>
-          <div class="table-wrapper">
-            <div id="under-table">Loading…</div>
-          </div>
-        </div>
-      </div>
-    </div>
+        <div class="card">
+          <h2>
+            <span>🏆 Top 25 Undervalued</span>
+            <span class="badge">Highest Score</span>
+          </h2>
+          <div class="table-wrapper">
+            <div id="under-table">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <aside class="sidebar">
-      <div class="banner-side">
-                        <div id="default-right-banner">
-                Right Banner<br />(160×600)
-            </div>
-                        <div id="detail-card"></div> 
-      </div>
-    </aside>
-  </div>
+    <aside class="sidebar">
+      <div class="banner-side">
+        <div id="default-right-banner">
+          Right Banner<br />(160×600)
+        </div>
+        <div id="detail-card"></div>
+      </div>
+    </aside>
+  </div>
 
-  <footer>
-    Market data via <a href="https://coincap.io" target="_blank" rel="noopener">CoinCap API</a> • Fundamental analysis powered by <a href="https://gemini.google.com" target="_blank" rel="noopener">Google Gemini</a><br>
-    Undervaluation model is experimental and for informational purposes only. This is not financial advice.
-  </footer>
+  <footer>
+    Market data via <a href="https://coincap.io" target="_blank" rel="noopener">CoinCap API</a> • Fundamental analysis powered by <a href="https://gemini.google.com" target="_blank" rel="noopener">Google Gemini</a><br>
+    Undervaluation model is experimental and for informational purposes only. This is not financial advice.
+  </footer>
 </main>
 
 <script>
-// Helper function to format ISO date string to a readable time
 function formatLastUpdated(isoString) {
     if (!isoString) return 'unknown time';
     const date = new Date(isoString);
@@ -373,16 +397,14 @@ function formatLastUpdated(isoString) {
 function formatNum(n, type) {
     const v = Number(n);
     if (!isFinite(v) || v === 0) return "-";
-    
-    // Handle price formatting
+
     if (type === 'price') {
         let priceDecimals = 2;
         if (Math.abs(v) < 1) priceDecimals = 4;
         if (Math.abs(v) < 0.0001 && Math.abs(v) > 0) return v.toExponential(2);
         return v.toFixed(priceDecimals);
     }
-    
-    // Handle Market Cap/Volume formatting (K/M/B)
+
     if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + "B";
     if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
     if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(2) + "K";
@@ -390,28 +412,28 @@ function formatNum(n, type) {
 }
 
 async function loadData() {
-  const status = document.getElementById("status");
-  try {
-    status.textContent = "Loading data…";
-    const res = await fetch("data.json?cb=" + Date.now()); 
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    
-    const json = await res.json();
-    
-    const allCoins = json.data || []; 
-    
+  const status = document.getElementById("status");
+  try {
+    status.textContent = "Loading data…";
+    const res = await fetch("data.json?cb=" + Date.now());
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const json = await res.json();
+
+    const allCoins = json.data || [];
+
     const undervaluedCoins = allCoins.filter(coin => coin.category === 'Undervalued');
     const overvaluedCoins = allCoins.filter(coin => coin.category === 'Overvalued');
-    
+
     const lastUpdateTime = formatLastUpdated(json.generated_at);
-    status.textContent = `Last updated: ${lastUpdateTime} — Next update in 8 hours`;
-    
-    renderTables(undervaluedCoins, overvaluedCoins);
-    
-  } catch (e) {
-    console.error("Data loading error:", e);
-    status.textContent = `Error loading data: ${e.message}. Check your console for details.`;
-  }
+    status.textContent = `Last updated: ${lastUpdateTime} — Next update in 8 hours`;
+
+    renderTables(undervaluedCoins, overvaluedCoins);
+
+  } catch (e) {
+    console.error("Data loading error:", e);
+    status.textContent = `Error loading data: ${e.message}. Check your console for details.`;
+  }
 }
 
 function renderTable(rows) {
@@ -425,7 +447,7 @@ function renderTable(rows) {
             <th>Score</th>
             <th>Price</th>
             <th>Market Cap</th>
-            <th>Volume (24h)</th> 
+            <th>Volume (24h)</th>
             <th>24h %</th>
         </tr>
     </thead>
@@ -436,23 +458,23 @@ function renderTable(rows) {
         const volume_24h = Number(r.volume_24h || 0);
         const price_change_24h = Number(r.price_change_24h || 0);
         const fundamental_score = Number(r.fundamental_score || 0);
-        
+
         let momentumColor = 'inherit';
         if (price_change_24h > 0) {
             momentumColor = 'var(--accent-green)';
         } else if (price_change_24h < 0) {
             momentumColor = 'var(--accent-red)';
         }
-        
+
         const safeSummary = (r.summary || 'No summary available.').replace(/"/g, '&quot;');
 
-        html += `<tr data-id="${r.id}" data-summary="${safeSummary}">` + 
-            `<td style="text-align: left;">${r.rank}</td>` + 
+        html += `<tr data-id="${r.id}" data-summary="${safeSummary}">` +
+            `<td style="text-align: left;">${r.rank}</td>` +
             `<td style="text-align: left;">${r.name}</td>` +
             `<td style="text-align: right;"><strong>${fundamental_score.toFixed(1)}</strong></td>` +
             `<td style="text-align: right;">$${formatNum(price, 'price')}</td>` +
             `<td style="text-align: right;">$${formatNum(r.market_cap, 'cap')}</td>` +
-            `<td style="text-align: right;">$${formatNum(volume_24h, 'cap')}</td>` + 
+            `<td style="text-align: right;">$${formatNum(volume_24h, 'cap')}</td>` +
             `<td style="color:${momentumColor}; text-align: right;">${price_change_24h.toFixed(2)}%</td>` +
             "</tr>";
     }
@@ -462,9 +484,9 @@ function renderTable(rows) {
 }
 
 function renderTables(under, over) {
-  document.getElementById("under-table").innerHTML = renderTable(under);
-  document.getElementById("over-table").innerHTML = renderTable(over);
-    
+  document.getElementById("under-table").innerHTML = renderTable(under);
+  document.getElementById("over-table").innerHTML = renderTable(over);
+
     document.querySelectorAll('tbody tr').forEach(row => {
         row.addEventListener('click', function() {
             displaySummary(this);
@@ -481,13 +503,11 @@ function displaySummary(rowElement) {
     const currentTitle = detailCard.querySelector('h3') ? detailCard.querySelector('h3').textContent : '';
 
     if (currentTitle.includes(coinName)) {
-        // Toggle OFF: Clear the summary and show the default banner
         detailCard.innerHTML = '';
         defaultBanner.style.display = 'block';
         return;
     }
 
-    // Toggle ON: Display the summary and hide the default banner
     detailCard.innerHTML = `
         <h3 style="margin-top:0; color:white; font-size: 1.0rem; margin-bottom: 0.5rem; text-align: center;">${coinName} Analysis</h3>
         <p style="color:var(--muted);font-size:0.8rem;line-height:1.4;">${summary}</p>
@@ -501,7 +521,6 @@ function displaySummary(rowElement) {
     }
 }
 
-// Initial call to load data
 loadData();
 </script>
 </body>
