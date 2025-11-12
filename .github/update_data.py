@@ -11,7 +11,6 @@ from google.genai import types
 from google.genai.errors import APIError
 
 # --- Configuration (No Changes) ---
-# ... (Configuration block remains the same) ...
 
 GEMINI_CLIENT = None
 try:
@@ -19,19 +18,19 @@ try:
 except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
 
-COINCAP_API_BASE = "https://rest.coincap.io/V3" 
-COINCAP_KEY = os.environ.get("COINCAPSECRET") 
+COINCAP_API_BASE = "https://rest.coincap.io/V3"
+COINCAP_KEY = os.environ.get("COINCAPSECRET")
 
 if COINCAP_KEY:
     HEADERS = {
-        'Authorization': f'Bearer {COINCAP_KEY}' 
+        'Authorization': f'Bearer {COINCAP_KEY}'
     }
 else:
     HEADERS = {}
-    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.") 
+    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.")
 
 OUTPUT_FILE = "docs/data.json"
-TOP_N = 200 
+TOP_N = 200
 
 # --- Data Retrieval (CoinCap V3 - No Changes) ---
 
@@ -40,7 +39,7 @@ def fetch_coincap_assets(limit=TOP_N):
     print(f"Fetching top {limit} assets from CoinCap V3...")
     try:
         response = requests.get(
-            f"{COINCAP_API_BASE}/assets?limit={limit}", 
+            f"{COINCAP_API_BASE}/assets?limit={limit}",
             headers=HEADERS
         )
         response.raise_for_status()
@@ -66,7 +65,7 @@ def triage_coins(all_coins_df: pd.DataFrame) -> dict:
     all_coins_list['priceUsd'] = pd.to_numeric(all_coins_list['priceUsd'], errors='coerce').round(4).fillna(0.0)
     
     coin_data_text = "\n".join([
-        f"- {r['name']} ({r['symbol']}, ID: {r['id']}) - MarketCap: ${r['marketCapUsd']:,} - Price: ${r['priceUsd']}" 
+        f"- {r['name']} ({r['symbol']}, ID: {r['id']}) - MarketCap: ${r['marketCapUsd']:,} - Price: ${r['priceUsd']}"
         for _, r in all_coins_list.iterrows()
     ])
 
@@ -104,7 +103,7 @@ def triage_coins(all_coins_df: pd.DataFrame) -> dict:
         return results
 
     except (APIError, json.JSONDecodeError, Exception) as e:
-        print(f"   [FATAL GEMINI TRIAGE ERROR] Failed to perform triage. Error: {e!r}. Returning empty list.")
+        print(f"    [FATAL GEMINI TRIAGE ERROR] Failed to perform triage. Error: {e!r}. Returning empty list.")
         return {'undervalued': [], 'overvalued': []}
 
 
@@ -129,7 +128,7 @@ def research_candidates(candidates: list) -> dict:
         f"2. The JSON object must map the lowercase Coin ID (e.g., 'bitcoin') to its summary string.\n"
         f"3. The summary must be a brief, 1-2 sentence description of the research findings.\n\n"
         f"Candidates to Research:\n{candidate_list_text}\n\n"
-        f"EXAMPLE OUTPUT: {{\"solana\": \"New cross-chain bridge launched to Polygon, boosting total locked value.\", \"dogecoin\": \"Elon Musk tweet about new payment integration caused a temporary price spike.\"]}}"
+        f"EXAMPLE OUTPUT: {{\"solana\": \"New cross-chain bridge launched to Polygon, boosting total locked value.\", \"dogecoin\": \"Elon Musk tweet about new payment integration caused a temporary price spike.\"}}" # FIXED: Removed array brackets
     )
     
     try:
@@ -153,7 +152,7 @@ def research_candidates(candidates: list) -> dict:
         return results
 
     except (APIError, json.JSONDecodeError, Exception) as e:
-        print(f"   [FATAL GEMINI RESEARCH ERROR] Failed to perform research. Error: {e!r}. Skipping summaries.")
+        print(f"    [FATAL GEMINI RESEARCH ERROR] Failed to perform research. Error: {e!r}. Skipping summaries.")
         return {}
 
 
@@ -197,11 +196,13 @@ def compute_all_scores():
         summary = summary_map.get(coin_id, "N/A (Could not generate research summary.)")
         
         final_data_list.append({
+            'id': coin_data.get('id', 'N/A'), # ADDED: Include the unique coin ID
             'rank': coin_data.get('rank', 'N/A'),
             'symbol': coin_data.get('symbol', 'N/A'),
             'name': coin_data.get('name', 'N/A'),
             'price': round(float(coin_data.get('priceUsd', 0)), 4),
             'market_cap': int(round(float(coin_data.get('marketCapUsd', 0)))),
+            'volume_24h': int(round(float(coin_data.get('volumeUsd24Hr', 0)))), # ADDED: Volume 24h
             'price_change_24h': round(float(coin_data.get('changePercent24Hr', 0)), 2),
             'fundamental_score': candidate['fundamental_score'],
             'summary': summary,
@@ -213,7 +214,7 @@ def compute_all_scores():
     
     # Sort logic to show Undervalued first, then by score
     final_df['sort_key'] = final_df['category'].apply(lambda x: 0 if x == 'Undervalued' else 1)
-    final_df = final_df.sort_values(by=['sort_key', 'fundamental_score'], 
+    final_df = final_df.sort_values(by=['sort_key', 'fundamental_score'],
                                     ascending=[True, False]).drop(columns=['sort_key'])
 
     output_dict = {
