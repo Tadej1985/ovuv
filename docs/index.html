@@ -14,7 +14,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
     :root {
@@ -122,8 +122,9 @@
       color: #fbbf24;
       min-height: 600px;
       display: flex;
+      flex-direction: column; /* Added to stack banner and detail card */
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start; /* Aligned to the top */
       box-shadow: 0 8px 24px rgba(250,204,21,0.05);
     }
 
@@ -185,18 +186,29 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 0.85rem;
+      table-layout: fixed; /* Ensures column widths are stable */
     }
 
     th, td {
       padding: 0.65rem 0.5rem;
       border-bottom: 1px solid rgba(31,41,55,0.5);
-      text-align: right;
+      text-align: right; /* Default data alignment */
     }
 
-    th:first-child, td:first-child,
-    th:nth-child(2), td:nth-child(2) {
+    /* Custom alignment for Name and Symbol */
+    th:first-child, td:first-child, /* Rank */
+    th:nth-child(2), td:nth-child(2) { /* Name */
       text-align: left;
     }
+    
+    /* Set column widths for better visual balance */
+    th:first-child { width: 5%; } 
+    th:nth-child(2) { width: 30%; } /* Name column wide */
+    th:nth-child(3) { width: 10%; } /* Score */
+    th:nth-child(4) { width: 15%; } /* Price */
+    th:nth-child(5) { width: 20%; } /* Market Cap */
+    th:last-child { width: 10%; } /* 24h % */
+
 
     th {
       position: sticky;
@@ -207,11 +219,28 @@
       color: var(--muted);
       font-size: 0.8rem;
       letter-spacing: 0.3px;
+      text-transform: uppercase;
     }
 
     tr:nth-child(odd) { background: rgba(15,23,42,0.5); }
     tr:nth-child(even) { background: rgba(15,23,42,0.35); }
-    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; }
+    tr:hover { background: rgba(31,41,55,0.4); transition: background 0.15s ease; cursor: pointer; } /* Added cursor pointer */
+
+    #detail-card {
+        margin-top: 20px;
+        padding: 0;
+        width: 100%; /* Take full width of parent */
+        text-align: left;
+    }
+    
+    .banner-side > div:first-child:not(#detail-card) {
+        /* Default banner style to center text */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100px; /* Give it some space */
+    }
+
 
     footer {
       margin-top: 3rem;
@@ -258,6 +287,9 @@
       h1 {
         font-size: 1.6rem;
       }
+      .banner-side > div:first-child:not(#detail-card) {
+          min-height: 50px;
+      }
     }
 
     @media (max-width: 768px) {
@@ -339,7 +371,7 @@
     <aside class="sidebar">
       <div class="banner-side">
         <div>Right Banner<br />(160×600)</div>
-        <div id="detail-card"></div>
+        <div id="detail-card"></div> 
       </div>
     </aside>
   </div>
@@ -355,7 +387,27 @@
 function formatLastUpdated(isoString) {
     if (!isoString) return 'unknown time';
     const date = new Date(isoString);
+    // Format to "HH:MM AM/PM"
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function formatNum(n, type) {
+    const v = Number(n);
+    if (!isFinite(v) || v === 0) return "-";
+    
+    // Handle price formatting
+    if (type === 'price') {
+        let priceDecimals = 2;
+        if (Math.abs(v) < 1) priceDecimals = 4;
+        if (Math.abs(v) < 0.0001 && Math.abs(v) > 0) return v.toExponential(2);
+        return v.toFixed(priceDecimals);
+    }
+    
+    // Handle Market Cap/Volume formatting (K/M/B)
+    if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + "B";
+    if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
+    if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(2) + "K";
+    return v.toFixed(0);
 }
 
 async function loadData() {
@@ -368,52 +420,31 @@ async function loadData() {
     
     const json = await res.json();
     
-    // --- START OF FIX: Correctly read and separate data ---
-    
-    // 1. Get the list of all coins from the 'data' key
+    // --- Data Extraction Logic (Fixed) ---
     const allCoins = json.data || []; 
     
-    // 2. Separate coins into Undervalued and Overvalued lists
+    // Separate coins into Undervalued and Overvalued lists
     const undervaluedCoins = allCoins.filter(coin => coin.category === 'Undervalued');
     const overvaluedCoins = allCoins.filter(coin => coin.category === 'Overvalued');
     
-    // 3. Update status text using the 'generated_at' key
+    // Update status text using the 'generated_at' key
     const lastUpdateTime = formatLastUpdated(json.generated_at);
     status.textContent = `Last updated: ${lastUpdateTime} — Next update in 8 hours`;
     
-    // 4. Render the tables with the correct separated data
+    // Render the tables with the correct separated data
     renderTables(undervaluedCoins, overvaluedCoins);
     
   } catch (e) {
     console.error("Data loading error:", e);
-    status.textContent = `Error loading data: ${e.message}. Make sure 'data.json' is in the same directory and contains the correct structure.`;
+    status.textContent = `Error loading data: ${e.message}. Check your console for details.`;
   }
 }
 
-function formatNum(n, type) {
-  const v = Number(n);
-  if (!isFinite(v) || v === 0) return "-";
-    
-    // Handle price formatting
-    if (type === 'price') {
-        let priceDecimals = 2;
-        if (Math.abs(v) < 1) priceDecimals = 4;
-        if (Math.abs(v) < 0.0001 && Math.abs(v) > 0) return v.toExponential(2);
-        return v.toFixed(priceDecimals);
-    }
-    
-    // Handle Market Cap/Volume formatting (K/M/B)
-  if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + "B";
-  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
-  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(2) + "K";
-  return v.toFixed(0); // Market Cap should probably be rounded to 0 decimals for K/M/B
-}
+function renderTable(rows) {
+    if (!rows || !rows.length) return "<p style='text-align:center;padding:1rem;color:var(--muted);'>No data to display in this category.</p>";
 
-
-function renderTable(rows, tableId) {
-  if (!rows || !rows.length) return "<p style='text-align:center;padding:1rem;'>No data to display in this category.</p>";
-
-  let html = `<table>
+    // Use the exact headers and column count as your design implies
+    let html = `<table>
     <thead>
         <tr>
             <th>#</th>
@@ -421,44 +452,49 @@ function renderTable(rows, tableId) {
             <th>Score</th>
             <th>Price</th>
             <th>Market Cap</th>
+            <th>Volume (24h)</th> 
             <th>24h %</th>
         </tr>
     </thead>
     <tbody>`;
 
-  for (const r of rows) {
-    // --- NOTE: Field names now match your JSON: price, market_cap, price_change_24h ---
-    const price = Number(r.price);
-    const momentum = Number(r.price_change_24h);
-    const fundamental_score = Number(r.fundamental_score);
-    
-    // Set color for 24h change
-    let momentumColor = 'inherit';
-    if (momentum > 0) {
-      momentumColor = 'var(--accent-green)'; // Use CSS variable
-    } else if (momentum < 0) {
-      momentumColor = 'var(--accent-red)'; // Use CSS variable
-    }
+    for (const r of rows) {
+        const price = Number(r.price);
+        // Assuming your JSON has these fields based on previous context:
+        const volume_24h = Number(r.volume_24h || 0);
+        const price_change_24h = Number(r.price_change_24h || 0);
+        const fundamental_score = Number(r.fundamental_score || 0);
+        
+        let momentumColor = 'inherit';
+        if (price_change_24h > 0) {
+            momentumColor = 'var(--accent-green)';
+        } else if (price_change_24h < 0) {
+            momentumColor = 'var(--accent-red)';
+        }
+        
+        // Escape quotes in summary for safe HTML attribute reading
+        const safeSummary = (r.summary || 'No summary available.').replace(/"/g, '&quot;');
 
-    html += `<tr data-id="${r.id}" data-summary="${r.summary}">` + // Add data attributes for summary
-      `<td>${r.rank}</td>` +
-      `<td>${r.name}</td>` +
-      `<td><strong>${fundamental_score.toFixed(1)}</strong></td>` + // Display score prominently
-      `<td>$${formatNum(price, 'price')}</td>` +
-      `<td>$${formatNum(r.market_cap, 'cap')}</td>` +
-      `<td style="color:${momentumColor};">${momentum.toFixed(2)}%</td>` +
-      "</tr>";
-  }
+        html += `<tr data-id="${r.id}" data-summary="${safeSummary}">` + 
+            `<td style="text-align: right;">${r.rank}</td>` +
+            `<td style="text-align: left;">${r.name}</td>` +
+            `<td style="text-align: right;"><strong>${fundamental_score.toFixed(1)}</strong></td>` +
+            `<td style="text-align: right;">$${formatNum(price, 'price')}</td>` +
+            `<td style="text-align: right;">$${formatNum(r.market_cap, 'cap')}</td>` +
+            `<td style="text-align: right;">$${formatNum(volume_24h, 'cap')}</td>` +
+            `<td style="color:${momentumColor}; text-align: right;">${price_change_24h.toFixed(2)}%</td>` +
+            "</tr>";
+    }
 
-  html += "</tbody></table>";
-  return html;
+    html += "</tbody></table>";
+    return html;
 }
 
 function renderTables(under, over) {
-  document.getElementById("under-table").innerHTML = renderTable(under, 'under-table');
-  document.getElementById("over-table").innerHTML = renderTable(over, 'over-table');
+  document.getElementById("under-table").innerHTML = renderTable(under);
+  document.getElementById("over-table").innerHTML = renderTable(over);
     
-    // Add event listeners for the new rows to display summaries
+    // Setup click handlers for the summary feature
     document.querySelectorAll('tbody tr').forEach(row => {
         row.addEventListener('click', function() {
             displaySummary(this);
@@ -467,31 +503,39 @@ function renderTables(under, over) {
 }
 
 function displaySummary(rowElement) {
-    const summary = rowElement.dataset.summary;
+    // Read and un-escape quotes from data attribute
+    const summary = rowElement.dataset.summary.replace(/&quot;/g, '"');
     const coinName = rowElement.querySelector('td:nth-child(2)').textContent;
     const detailCard = document.getElementById('detail-card');
-    
-    // Check if the card is already displaying this summary
-    const currentName = detailCard.querySelector('h3') ? detailCard.querySelector('h3').textContent : '';
+    const bannerSide = rowElement.closest('main').querySelector('.banner-side');
 
-    // If clicking the same row, hide the summary to toggle it off
-    if (currentName === coinName) {
-        detailCard.innerHTML = '<div>Left Banner<br />(160×600)</div>';
-        detailCard.classList.remove('active');
+    // Toggle logic: If clicking the same coin, clear the summary.
+    const currentName = detailCard ? detailCard.querySelector('h3') : null;
+    if (currentName && currentName.textContent.includes(coinName)) {
+        // Toggle OFF: Reset content to the default banner message
+        detailCard.innerHTML = '';
+        bannerSide.innerHTML = '<div>Right Banner<br />(160×600)</div><div id="detail-card"></div>';
         return;
     }
 
-    // Otherwise, display the new summary
-    detailCard.classList.add('active');
+    // Toggle ON: Inject the summary into the detail card container
     detailCard.innerHTML = `
-        <h3 style="margin-top:0; color:white;">${coinName} Analysis</h3>
+        <h3 style="margin-top:0; color:white; font-size: 1.0rem; margin-bottom: 0.5rem;">${coinName} Analysis</h3>
         <p style="color:var(--muted);font-size:0.8rem;line-height:1.4;">${summary}</p>
         <p style="text-align:right;font-size:0.75rem;color:#4b5563;margin-bottom:0;">Click row again to dismiss.</p>
     `;
-    // Scroll the sidebar to bring the detail card into view if needed
-    detailCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Hide the standard banner content once the summary is displayed
+    const defaultBanner = bannerSide.querySelector('div:not(#detail-card)');
+    if (defaultBanner) {
+        defaultBanner.style.display = 'none';
+    }
+
+    // Scroll to the top of the content area if necessary (optional UX improvement)
+    // window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Initial call to load data
 loadData();
 </script>
 </body>
