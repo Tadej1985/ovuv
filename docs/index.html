@@ -29,8 +29,9 @@
     html, body {
       margin: 0;
       padding: 0;
+      /* Using a generic font stack for reliability */
       font-family: system-ui, sans-serif; 
-      /* CSS Background is kept for the gradient effect on HTML element */
+      /* This is the background that should now apply the dark gradient */
       background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%) !important;
       color: var(--text);
     }
@@ -296,7 +297,7 @@
     }
   </style>
 </head>
-<body style="background: #020617;">
+<body>
 <header>
   <h1>
     <span class="brand"><span class="o">O</span>V<span class="u">U</span>V</span>
