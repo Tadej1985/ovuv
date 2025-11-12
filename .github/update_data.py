@@ -5,20 +5,23 @@ import pandas as pd
 import numpy as np
 import re
 from datetime import datetime, timedelta
+import time # Import for the sleep function used in retries
 
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
-# --- Configuration (No Changes) ---
+# --- Configuration ---
 
 GEMINI_CLIENT = None
 try:
+    # Client initialization uses the GEMINI_API_KEY environment variable
     GEMINI_CLIENT = genai.Client()
 except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
 
 COINCAP_API_BASE = "https://rest.coincap.io/V3"
+# CoinCap API key should be stored in COINCAPSECRET environment variable
 COINCAP_KEY = os.environ.get("COINCAPSECRET")
 
 if COINCAP_KEY:
@@ -32,7 +35,7 @@ else:
 OUTPUT_FILE = "docs/data.json"
 TOP_N = 200
 
-# --- Data Retrieval (CoinCap V3 - No Changes) ---
+# --- Data Retrieval (CoinCap V3) ---
 
 def fetch_coincap_assets(limit=TOP_N):
     """Fetches the top N assets from CoinCap API using the Authorization header."""
@@ -55,7 +58,7 @@ def fetch_coincap_assets(limit=TOP_N):
 def triage_coins(all_coins_df: pd.DataFrame) -> dict:
     """
     Triage 200 coins and assign initial scores based on model's knowledge only.
-    This avoids the 'TOO_MANY_TOOL_CALLS' error.
+    Avoids the 'TOO_MANY_TOOL_CALLS' error by excluding the search tool.
     """
     if not GEMINI_CLIENT:
         return {'undervalued': [], 'overvalued': []}
@@ -88,7 +91,7 @@ def triage_coins(all_coins_df: pd.DataFrame) -> dict:
         response = GEMINI_CLIENT.models.generate_content(
             model='gemini-2.5-flash',
             contents=[prompt],
-            # NO tools=... to avoid the TOO_MANY_TOOL_CALLS error
+            # tools=[] is the default, ensuring no search tool is used
         )
         
         raw_text = response.text.strip()
@@ -107,16 +110,19 @@ def triage_coins(all_coins_df: pd.DataFrame) -> dict:
         return {'undervalued': [], 'overvalued': []}
 
 
-# --- Gemini Batch Function 2: Research and Summary (WITH Search Tool) ---
+# --- Gemini Batch Function 2: Research and Summary (WITH Search Tool + RETRY) ---
 
 def research_candidates(candidates: list) -> dict:
     """
     Performs in-depth research and generates a summary for the selected candidates.
+    Includes a retry mechanism with exponential backoff for transient ServerErrors.
     """
     if not GEMINI_CLIENT or not candidates:
         return {}
     
-    print(f"\n--- Starting Gemini In-Depth Research for {len(candidates)} candidates (2nd Call) ---")
+    MAX_RETRIES = 3
+    
+    print(f"\n--- Starting Gemini In-Depth Research for {len(candidates)} candidates (2nd Call, MAX_RETRIES={MAX_RETRIES}) ---")
     
     candidate_list_text = "\n".join([f"- {c['id']} (Current Score: {c['fundamental_score']})" for c in candidates])
     
@@ -128,32 +134,52 @@ def research_candidates(candidates: list) -> dict:
         f"2. The JSON object must map the lowercase Coin ID (e.g., 'bitcoin') to its summary string.\n"
         f"3. The summary must be a brief, 1-2 sentence description of the research findings.\n\n"
         f"Candidates to Research:\n{candidate_list_text}\n\n"
-        f"EXAMPLE OUTPUT: {{\"solana\": \"New cross-chain bridge launched to Polygon, boosting total locked value.\", \"dogecoin\": \"Elon Musk tweet about new payment integration caused a temporary price spike.\"}}" # FIXED: Removed array brackets
+        f"EXAMPLE OUTPUT: {{\"solana\": \"New cross-chain bridge launched to Polygon, boosting total locked value.\", \"dogecoin\": \"Elon Musk tweet about new payment integration caused a temporary price spike.\"}}"
     )
     
-    try:
-        response = GEMINI_CLIENT.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[prompt],
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())], # Tool use is fine here, as the list is small
-            ),
-        )
-        
-        raw_text = response.text.strip()
-        json_match = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", raw_text, re.DOTALL)
-        
-        json_str = json_match.group(1).strip() if json_match else raw_text
-        if not json_str:
-             raise ValueError("Gemini returned an empty or unparsable response.")
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = GEMINI_CLIENT.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=[prompt],
+                config=types.GenerateContentConfig(
+                    tools=[types.Tool(google_search=types.GoogleSearch())],
+                ),
+            )
+            
+            raw_text = response.text.strip()
+            json_match = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", raw_text, re.DOTALL)
+            
+            json_str = json_match.group(1).strip() if json_match else raw_text
+            if not json_str:
+                 raise ValueError("Gemini returned an empty or unparsable response.")
 
-        results = json.loads(json_str)
-        print("--- Gemini Research Complete ---")
-        return results
+            results = json.loads(json_str)
+            print(f"--- Gemini Research Complete (Attempt {attempt + 1}) ---")
+            return results
 
-    except (APIError, json.JSONDecodeError, Exception) as e:
-        print(f"    [FATAL GEMINI RESEARCH ERROR] Failed to perform research. Error: {e!r}. Skipping summaries.")
-        return {}
+        except (APIError, json.JSONDecodeError) as e:
+            # Check for the specific ServerError/Internal error for retries
+            if "500 INTERNAL" in str(e) or "503" in str(e):
+                if attempt < MAX_RETRIES - 1:
+                    # Exponential backoff: 1s, 2s, 4s wait times
+                    wait_time = 2 ** attempt
+                    print(f"    [TRANSIENT ERROR] Attempt {attempt + 1} failed (Code 500/503). Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    # Final attempt failed
+                    print(f"    [FATAL GEMINI RESEARCH ERROR] Failed after {MAX_RETRIES} attempts. Error: {e!r}. Skipping summaries.")
+                    return {}
+            else:
+                # For non-retriable errors (e.g., JSON parse error)
+                print(f"    [FATAL GEMINI RESEARCH ERROR] Non-retriable error: {e!r}. Skipping summaries.")
+                return {}
+        except Exception as e:
+            # Catch general Python exceptions
+            print(f"    [FATAL GEMINI RESEARCH ERROR] Unexpected error: {e!r}. Skipping summaries.")
+            return {}
+            
+    return {} # Return empty on final failure
 
 
 # --- Main Scoring Logic ---
@@ -176,7 +202,7 @@ def compute_all_scores():
         print("Exiting: AI triage returned no candidates.")
         return
     
-    # 3. Gemini Call 2: Research and Summarize (With Search)
+    # 3. Gemini Call 2: Research and Summarize (With Search and Retries)
     summary_map = research_candidates(all_candidates)
 
     # 4. Merge Results and Prepare Final Output
@@ -196,13 +222,14 @@ def compute_all_scores():
         summary = summary_map.get(coin_id, "N/A (Could not generate research summary.)")
         
         final_data_list.append({
-            'id': coin_data.get('id', 'N/A'), # ADDED: Include the unique coin ID
+            'id': coin_data.get('id', 'N/A'),
             'rank': coin_data.get('rank', 'N/A'),
             'symbol': coin_data.get('symbol', 'N/A'),
             'name': coin_data.get('name', 'N/A'),
             'price': round(float(coin_data.get('priceUsd', 0)), 4),
             'market_cap': int(round(float(coin_data.get('marketCapUsd', 0)))),
-            'volume_24h': int(round(float(coin_data.get('volumeUsd24Hr', 0)))), # ADDED: Volume 24h
+            # Key for 24h volume
+            'volume_24h': int(round(float(coin_data.get('volumeUsd24Hr', 0)))),
             'price_change_24h': round(float(coin_data.get('changePercent24Hr', 0)), 2),
             'fundamental_score': candidate['fundamental_score'],
             'summary': summary,
@@ -222,6 +249,7 @@ def compute_all_scores():
         "data": final_df.to_dict('records')
     }
     
+    # Ensure the docs directory exists before writing
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     
     with open(OUTPUT_FILE, 'w') as f:
