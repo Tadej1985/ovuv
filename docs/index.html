@@ -29,9 +29,9 @@
     html, body {
       margin: 0;
       padding: 0;
-      /* Using a generic font stack to avoid external loading failure */
+      /* Using a generic font stack for reliability */
       font-family: system-ui, sans-serif; 
-      /* FIX: Added !important to ensure dark background is applied instantly */
+      /* Added !important to guarantee the dark background loads first */
       background: linear-gradient(135deg, #0f1220 0%, #020617 50%, #000 100%) !important;
       color: var(--text);
     }
@@ -398,7 +398,6 @@ async function loadData() {
     
     const json = await res.json();
     
-    // --- Data Extraction Logic (Fixed) ---
     const allCoins = json.data || []; 
     
     const undervaluedCoins = allCoins.filter(coin => coin.category === 'Undervalued');
