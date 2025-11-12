@@ -5,39 +5,33 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-# Import Gemini SDK components
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
 # --- Configuration ---
 
-# 1. Gemini API Key: Set this environment variable securely: 
-#    export GEMINI_API_KEY="YOUR_GEMINI_SECRET_KEY"
 GEMINI_CLIENT = None
 try:
     GEMINI_CLIENT = genai.Client()
 except Exception as e:
     print(f"Warning: Could not initialize Gemini Client. Check GEMINI_API_KEY environment variable. Error: {e}")
 
-# 2. CoinCap V3 API Key and Base URL:
-#    ***NOTE: The key is now read from the COINCAPSECRET environment variable.***
 COINCAP_API_BASE = "https://rest.coincap.io/V3" 
-COINCAP_KEY = os.environ.get("COINCAPSECRET") # <-- Changed to COINCAPSECRET
+COINCAP_KEY = os.environ.get("COINCAPSECRET") 
 
-# Set the Authorization header for CoinCap V3 requests
 if COINCAP_KEY:
     HEADERS = {
         'Authorization': f'Bearer {COINCAP_KEY}' 
     }
 else:
     HEADERS = {}
-    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.") # <-- Changed warning
+    print("WARNING: COINCAPSECRET environment variable not set. V3 API requests will likely fail.") 
 
 OUTPUT_FILE = "docs/data.json"
-TOP_N = 50  # Number of coins to process from CoinCap's top list
+TOP_N = 200 # <-- PULL 200 COINS FROM COINCAP
 
-# --- Helper Functions for Data Retrieval (Using Headers) ---
+# --- Data Retrieval (CoinCap V3) ---
 
 def fetch_coincap_assets(limit=TOP_N):
     """Fetches the top N assets from CoinCap API using the Authorization header."""
@@ -45,7 +39,7 @@ def fetch_coincap_assets(limit=TOP_N):
     try:
         response = requests.get(
             f"{COINCAP_API_BASE}/assets?limit={limit}", 
-            headers=HEADERS  # Pass the Authorization header here
+            headers=HEADERS
         )
         response.raise_for_status()
         data = response.json().get('data', [])
@@ -54,69 +48,63 @@ def fetch_coincap_assets(limit=TOP_N):
         print(f"Error fetching CoinCap V3 assets. Check your API key and rate limits: {e}")
         return pd.DataFrame()
 
-def fetch_historical_data(coin_id, days):
-    """
-    Fetches daily historical prices for a coin over a specified number of days.
-    Returns: (Historical Price from N days ago, list of daily returns)
-    """
-    # Calculate timestamps for the last 'days' interval
-    end_time_ms = int(datetime.now().timestamp() * 1000)
-    start_time_ms = int((datetime.now() - timedelta(days=days)).timestamp() * 1000)
-    
-    # Use daily interval (d1) for smooth data
-    url = f"{COINCAP_API_BASE}/assets/{coin_id}/history?interval=d1&start={start_time_ms}&end={end_time_ms}"
-    
-    try:
-        response = requests.get(url, headers=HEADERS) # Pass the Authorization header here
-        response.raise_for_status()
-        history = response.json().get('data', [])
-        
-        if len(history) < 2:
-            return None, [] # Not enough data
-            
-        # Historical price is the first one fetched (oldest)
-        historical_price = float(history[0]['priceUsd'])
-        
-        # Calculate daily returns for volatility: (P_i / P_{i-1}) - 1
-        prices = [float(h['priceUsd']) for h in history if h.get('priceUsd')]
-        returns = [(prices[i] - prices[i-1]) / prices[i-1] for i in range(1, len(prices))]
-        
-        return historical_price, returns
-        
-    except requests.exceptions.RequestException as e:
-        # Note: CoinCap's /history endpoint may have stricter limits.
-        print(f"Error fetching historical data for {coin_id}: {e}")
-        return None, []
+# The historical data function is removed as all analysis is now shifted to Gemini
 
+# --- Gemini Batch Processing Function (New Logic) ---
 
-# --- Gemini Batch Processing Function (Rate Limit Optimization) ---
-
-def get_fundamental_scores_batch(candidates: list) -> dict:
+def get_final_ranked_list(all_coins_df: pd.DataFrame) -> dict:
     """
-    Uses a single Gemini API call to score all candidates, dramatically
-    reducing the number of API calls and avoiding the 10 RPM limit.
+    Sends all coin data to Gemini in one prompt, asking the model to perform 
+    the triage, research, and final ranking.
     """
     if not GEMINI_CLIENT:
-        return {c['id']: 3.0 for c in candidates}
+        print("\nGemini Client is not initialized. Cannot perform analysis.")
+        return {}
     
-    print(f"\n--- Starting Gemini Fundamental Batch Analysis for {len(candidates)} coins (1 Request) ---")
+    # Prepare the list of all 200 coins for the prompt
+    all_coins_list = all_coins_df[['id', 'name', 'symbol', 'marketCapUsd', 'priceUsd']].copy()
+    
+    # Convert numerical columns to float and format them nicely for the prompt
+    all_coins_list['marketCapUsd'] = pd.to_numeric(all_coins_list['marketCapUsd'], errors='coerce').round(0)
+    all_coins_list['priceUsd'] = pd.to_numeric(all_coins_list['priceUsd'], errors='coerce').round(4)
+    
+    # Create the text input string for Gemini
+    coin_data_text = "\n".join([
+        f"- {r['name']} ({r['symbol']}, ID: {r['id']}) - MarketCap: ${r['marketCapUsd']:,} - Price: ${r['priceUsd']}" 
+        for _, r in all_coins_list.iterrows()
+    ])
 
-    coin_list_text = "\n".join([f"- {c['name']} ({c['symbol']}, ID: {c['id']})" for c in candidates])
+    print(f"\n--- Starting Gemini Triage, Research, and Ranking Batch Analysis for {len(all_coins_df)} coins (1 Request) ---")
 
     prompt = (
-        f"You are a rational, expert cryptocurrency analyst. Your task is to perform a fundamental "
-        f"analysis on the following {len(candidates)} crypto projects. For each project, you must "
-        f"search for and summarize the latest development, partnership, and core team news "
-        f"from the **last 8 hours**. "
-        f"Then, rate the project's **long-term fundamental strength** "
-        f"on a scale from 1.0 (Very Weak/Negative News) to 5.0 (Very Strong/Positive News) "
-        f"based ONLY on the fresh news.\n\n"
-        f"The projects to analyze are:\n{coin_list_text}\n\n"
+        f"You are an expert quantitative and fundamental cryptocurrency analyst. Your task is to perform a comprehensive "
+        f"screening and analysis on the following {len(all_coins_df)} projects, which are the top 200 by market capitalization.\n\n"
+        f"**PHASE 1: Triage and Selection**\n"
+        f"1. **Select 25 Undervalued Candidates:** Identify the 25 coins that show the highest potential for growth. Use the initial data (Market Cap, Price) to favor coins outside the top 10 that have low volatility and a strong narrative (you must research this).\n"
+        f"2. **Select 25 Overvalued Candidates:** Identify the 25 coins that show the highest risk or downward pressure. Favor projects with high market cap but recent negative news or a weak narrative (you must research this).\n"
+        f"3. **Total Candidates:** Your final analyzed list must contain exactly **50** unique coins.\n\n"
+        f"**PHASE 2: In-Depth Research and Scoring**\n"
+        f"For each of the 50 selected candidates, you must use Google Search to perform an in-depth fundamental analysis, focusing on: latest developments, team activity, new partnerships, and regulatory status from the **last 48 hours**.\n\n"
         f"**CRITICAL OUTPUT INSTRUCTIONS:**\n"
-        f"1. You must output ONLY a single JSON object."
-        f"2. The JSON object must map the lowercase Coin ID (e.g., 'bitcoin') to its numerical rating (1.0 to 5.0)."
-        f"3. Do NOT include any other text, description, or markdown outside the final JSON object.\n\n"
-        f"EXAMPLE OUTPUT: {{\"bitcoin\": 4.5, \"ethereum\": 3.8}}"
+        f"1. You must output ONLY a single JSON object. Do NOT include any other text or markdown outside the final JSON.\n"
+        f"2. The JSON object must contain two keys: `undervalued` and `overvalued`.\n"
+        f"3. Each key must contain a list of objects (25 items each).\n"
+        f"4. Each item must contain the following keys, with the specified data types:\n"
+        f"   - `id` (string): The lowercase Coin ID (e.g., 'bitcoin').\n"
+        f"   - `fundamental_score` (float): Your rating from 1.0 (Worst Fundamentals) to 5.0 (Best Fundamentals) based on your research.\n"
+        f"   - `summary` (string): A brief, 1-2 sentence summary of your research findings (e.g., 'Team announced a major DeFi partnership and regulatory clarity in EU').\n\n"
+        f"**Coin Data to Triage:**\n{coin_data_text}\n\n"
+        f"**EXAMPLE OUTPUT STRUCTURE:**\n"
+        f"{{\n"
+        f"  \"undervalued\": [\n"
+        f"    {{\"id\": \"solana\", \"fundamental_score\": 4.5, \"summary\": \"New strategic partnership with Google Cloud announced, driving adoption.\"]}},\n"
+        f"    /* ... 24 more undervalued items ... */\n"
+        f"  ],\n"
+        f"  \"overvalued\": [\n"
+        f"    {{\"id\": \"dogecoin\", \"fundamental_score\": 1.2, \"summary\": \"Large whale wallets began liquidating holdings following a major security breach.\"]}},\n"
+        f"    /* ... 24 more overvalued items ... */\n"
+        f"  ]\n"
+        f"}}"
     )
     
     try:
@@ -124,149 +112,84 @@ def get_fundamental_scores_batch(candidates: list) -> dict:
             model='gemini-2.5-flash',
             contents=[prompt],
             config=types.GenerateContentConfig(
-                response_mime_type="application/json",
                 tools=[types.Tool(google_search=types.GoogleSearch())],
             ),
         )
         
-        results = json.loads(response.text.strip())
-        
-        final_scores = {}
-        for candidate in candidates:
-            coin_id = candidate['id']
-            score = results.get(coin_id, 3.0) 
-            try:
-                final_scores[coin_id] = max(1.0, min(5.0, float(score)))
-            except (ValueError, TypeError):
-                final_scores[coin_id] = 3.0 
-                
-        print("--- Gemini Batch Analysis Complete ---")
-        return final_scores
+        # Parse the text response into a JSON object
+        raw_text = response.text.strip()
+        if raw_text.startswith('```json'):
+            json_str = raw_text.strip('` \n').replace('json\n', '', 1) 
+        else:
+            json_str = raw_text
+            
+        results = json.loads(json_str)
+        print("--- Gemini Analysis Complete ---")
+        return results
 
     except (APIError, json.JSONDecodeError, Exception) as e:
-        print(f"   [FATAL GEMINI BATCH ERROR] Failed to score batch. Error: {e!r}. Using neutral scores (3.0).")
-        return {c['id']: 3.0 for c in candidates}
+        print(f"   [FATAL GEMINI BATCH ERROR] Failed to perform triage and scoring. Error: {e!r}. Returning empty list.")
+        return {'undervalued': [], 'overvalued': []}
+
 
 # --- Main Scoring Logic ---
 
 def compute_all_scores():
     """Main function to fetch data, compute scores, and save results."""
+    # 1. Fetch 200 coins
     df = fetch_coincap_assets()
     if df.empty:
         print("Exiting: Could not fetch data.")
         return
 
-    # Convert numeric fields and prepare new columns
+    # Convert numeric fields
     df['marketCapUsd'] = pd.to_numeric(df['marketCapUsd'], errors='coerce')
-    df['volumeUsd24Hr'] = pd.to_numeric(df['volumeUsd24Hr'], errors='coerce')
     df['priceUsd'] = pd.to_numeric(df['priceUsd'], errors='coerce')
-    df['changePercent24Hr'] = pd.to_numeric(df['changePercent24Hr'], errors='coerce')
-    
-    # Initialize new columns
-    df['vol_mcap_ratio'] = 0.0
-    df['change_7d'] = 0.0
-    df['volatility_30d'] = 0.0
-    df['fundamental_score'] = 3.0 
-    df['undervalue_score'] = 0.0
 
-    # 1. Calculate Core Financial Metrics & Historical Data
-    print("Calculating financial and historical metrics...")
+    # 2. Get AI Triage and Scoring
+    ai_results = get_final_ranked_list(df)
     
-    # Volume/Market Cap Ratio (Value Component)
-    df['vol_mcap_ratio'] = (df['volumeUsd24Hr'] / df['marketCapUsd']) * 100
+    # Combine the undervalued and overvalued lists into a single, flat list
+    all_final_candidates = ai_results.get('undervalued', []) + ai_results.get('overvalued', [])
+
+    if not all_final_candidates:
+        print("Exiting: AI analysis returned no candidates.")
+        return
+
+    # 3. Merge AI Results with CoinCap Data and Prepare Final Output
+    final_data_list = []
     
-    # Calculate 7d/30d change and 30d Volatility
-    for index, row in df.iterrows():
+    for candidate in all_final_candidates:
+        coin_id = candidate['id']
         
-        # --- Fetch Historical Data ---
-        price_7d_ago, _ = fetch_historical_data(row['id'], 7)
-        price_30d_ago, returns_30d = fetch_historical_data(row['id'], 30)
-
-        # 7-Day Change
-        if row['priceUsd'] is not None and price_7d_ago is not None and price_7d_ago != 0:
-            df.loc[index, 'change_7d'] = ((row['priceUsd'] - price_7d_ago) / price_7d_ago) * 100
+        # Find the matching CoinCap data row
+        coin_data = df[df['id'] == coin_id].iloc[0].to_dict() if not df[df['id'] == coin_id].empty else None
         
-        # 30-Day Volatility (Standard Deviation of Daily Returns)
-        if len(returns_30d) > 1:
-            df.loc[index, 'volatility_30d'] = np.std(returns_30d) * 100
-        else:
-            df.loc[index, 'volatility_30d'] = 0.0 # Default to 0 if not enough data
+        if coin_data:
+            # Create the final output structure
+            final_data_list.append({
+                'rank': coin_data.get('rank', 'N/A'),
+                'symbol': coin_data.get('symbol', 'N/A'),
+                'name': coin_data.get('name', 'N/A'),
+                'price': round(float(coin_data.get('priceUsd', 0)), 4),
+                'market_cap': int(round(float(coin_data.get('marketCapUsd', 0)))),
+                'price_change_24h': round(float(coin_data.get('changePercent24Hr', 0)), 2),
+                'fundamental_score': candidate['fundamental_score'],
+                'summary': candidate['summary'],
+                'category': 'Undervalued' if candidate in ai_results.get('undervalued', []) else 'Overvalued'
+            })
 
-
-    # 2. Identify Gemini Candidates (Top 25 Undervalued + Top 25 Overvalued)
+    # 4. Final Sorting and JSON Output
+    final_df = pd.DataFrame(final_data_list)
     
-    # Standardize the Volume/Market Cap Ratio
-    df['z_vol_mcap'] = (df['vol_mcap_ratio'] - df['vol_mcap_ratio'].mean()) / df['vol_mcap_ratio'].std()
-    
-    # Standardize Volatility-Adjusted Momentum (New Component)
-    # Volatility-Adjusted Momentum: Lower price change relative to volatility is better for undervalue
-    df['vol_adj_momentum'] = df['change_7d'] / (df['volatility_30d'] + 0.01) 
-    df['z_vol_adj_momentum'] = (df['vol_adj_momentum'] - df['vol_adj_momentum'].mean()) / df['vol_adj_momentum'].std()
+    # Sort by category (Undervalued first) and then by fundamental score
+    final_df['sort_key'] = final_df['category'].apply(lambda x: 0 if x == 'Undervalued' else 1)
+    final_df = final_df.sort_values(by=['sort_key', 'fundamental_score'], 
+                                    ascending=[True, False]).drop(columns=['sort_key'])
 
-    # Create a composite score to select candidates for Gemini analysis
-    df['candidate_score'] = df['z_vol_mcap'] - df['z_vol_adj_momentum'] 
-    
-    candidates_undervalue = df.sort_values(by='candidate_score', ascending=False).head(25)
-    candidates_overvalue = df.sort_values(by='candidate_score', ascending=True).head(25)
-    
-    analysis_candidates = pd.concat([candidates_undervalue, candidates_overvalue]).drop_duplicates(subset=['id'])
-    analysis_candidates_list = analysis_candidates[['id', 'name', 'symbol']].to_dict('records')
-    
-
-    # 3. Batch Call Gemini API
-    fundamental_scores_map = get_fundamental_scores_batch(analysis_candidates_list)
-    
-    # Update DataFrame using the map (efficiently)
-    df['fundamental_score'] = df['id'].map(fundamental_scores_map).fillna(df['fundamental_score'])
-
-
-    # 4. Final Undervalue Score Calculation
-    
-    # Standardize the Final Fundamental Score
-    df['z_fundamental'] = (df['fundamental_score'] - df['fundamental_score'].mean()) / df['fundamental_score'].std()
-
-    # Undervalue Score (The Ranking Metric)
-    # Weights can be adjusted 
-    W_VOL_MCAP = 0.35
-    W_VOL_MOM = 0.35
-    W_FUNDAMENTAL = 0.30
-
-    df['undervalue_score'] = (
-        W_VOL_MCAP * df['z_vol_mcap'] 
-        - W_VOL_MOM * df['z_vol_adj_momentum'] # Subtract momentum for the undervalue calculation
-        + W_FUNDAMENTAL * df['z_fundamental']
-    )
-
-    # Sort and finalize the dataset
-    final_df = df.sort_values(by='undervalue_score', ascending=False).head(100)
-    
-    # Select and rename final columns for the output JSON
-    final_data = final_df[[
-        'rank', 'symbol', 'name', 'priceUsd', 'marketCapUsd', 
-        'volumeUsd24Hr', 'changePercent24Hr', 'vol_mcap_ratio', 
-        'change_7d', 'volatility_30d', 'fundamental_score', 'undervalue_score'
-    ]].copy()
-    
-    final_data.columns = [
-        'rank', 'symbol', 'name', 'price', 'market_cap', 
-        'volume_24h', 'price_change_24h', 'vol_mcap_ratio', 
-        'price_change_7d', 'volatility_30d', 'fundamental_score', 'undervalue_score'
-    ]
-    
-    # Round numerical data for clean JSON output
-    for col in ['price', 'market_cap', 'volume_24h', 'price_change_24h', 
-                'vol_mcap_ratio', 'price_change_7d', 'volatility_30d', 
-                'fundamental_score', 'undervalue_score']:
-        if col in ['market_cap', 'volume_24h']:
-             final_data[col] = final_data[col].apply(lambda x: int(round(x)))
-        else:
-             final_data[col] = final_data[col].round(2)
-
-
-    # 5. Save to JSON File
     output_dict = {
         "generated_at": datetime.now().isoformat(),
-        "data": final_data.to_dict('records')
+        "data": final_df.to_dict('records')
     }
     
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
@@ -274,7 +197,7 @@ def compute_all_scores():
     with open(OUTPUT_FILE, 'w') as f:
         json.dump(output_dict, f, indent=4)
         
-    print(f"\n✅ Successfully generated {len(final_data)} scores and saved to {OUTPUT_FILE}")
+    print(f"\n✅ Successfully generated {len(final_df)} highly-vetted scores and saved to {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     compute_all_scores()
